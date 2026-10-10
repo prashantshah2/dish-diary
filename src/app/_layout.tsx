@@ -1,18 +1,42 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { AppShell } from '@/components/app-shell';
+import { AuthProvider } from '@/lib/auth';
+import { useColors } from '@/lib/theme';
 
-SplashScreen.preventAutoHideAsync();
+export default function RootLayout() {
+  const scheme = useColorScheme();
+  const c = useColors();
+  const navTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ThemeProvider
+          value={{
+            ...navTheme,
+            colors: { ...navTheme.colors, primary: c.primary, background: c.background, card: c.surface, text: c.text, border: c.border },
+          }}>
+          <StatusBar style="auto" />
+          <AppShell>
+            <Stack
+              screenOptions={{
+                headerTintColor: c.primary,
+                headerTitleStyle: { color: c.text },
+                contentStyle: { backgroundColor: c.background },
+              }}>
+              <Stack.Screen name="index" options={{ title: 'Dish Diary' }} />
+              <Stack.Screen name="restaurant/new" options={{ title: 'Add a restaurant' }} />
+              <Stack.Screen name="restaurant/[id]" options={{ title: 'Restaurant' }} />
+              <Stack.Screen name="dish/[id]" options={{ title: 'Dish' }} />
+              <Stack.Screen name="about" options={{ title: 'About' }} />
+            </Stack>
+          </AppShell>
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

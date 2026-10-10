@@ -1,56 +1,72 @@
-# Welcome to your Expo app 👋
+# Dish Diary
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+See which dishes people liked (and which to skip) at restaurants near you.
+One Expo codebase runs as a website (Vercel) and as an iPhone app.
 
-## Get started
+**Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres, anonymous auth, RLS) · Cloudflare Turnstile (CAPTCHA) · Vercel (web hosting)
 
-1. Install dependencies
+## Project layout
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/app/                 screens (Expo Router: every file is a route)
+  index.tsx              restaurant list, search, cuisine filter
+  restaurant/new.tsx     add a restaurant
+  restaurant/[id].tsx    dishes grouped Must try / Mixed / Skip (two panes on wide screens)
+  dish/[id].tsx          one dish's reviews (phone)
+  about.tsx              privacy + community rules
+src/components/          UI pieces (app-shell = sidebar / bottom nav, turnstile, review form…)
+src/lib/                 supabase client, auth, theme + breakpoints, types
+supabase/schema.sql      tables, security rules, rate limits, auto-hide on reports
+.github/workflows/       keep-alive ping so the free Supabase project doesn't pause
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Layout by screen width
 
-### Other setup steps
+| Width | Layout |
+|---|---|
+| < 700px (phone) | single column, bottom navigation |
+| 700–1099px (tablet) | sidebar; restaurant page shows dish list + reviews side by side |
+| ≥ 1100px (desktop) | same, restaurant cards in 3 columns, content capped at 1100px |
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Breakpoints live in `src/lib/theme.ts` (`useBreakpoint`).
 
-## Learn more
+## One-time setup
 
-To learn more about developing your project with Expo, look at the following resources:
+1. **Database:** Supabase → SQL Editor → New query → paste `supabase/schema.sql` → Run.
+2. **Auth:** Supabase → Authentication → enable *Anonymous sign-ins* and *CAPTCHA (Turnstile)* with your Turnstile **secret** key.
+3. **Keys:** fill in `.env` (copied from `.env.example`). Only public keys go here.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Run locally
 
-## Join the community
+```bash
+npm install
+npx expo start        # press w for web, or scan the QR code with Expo Go on your iPhone
+```
 
-Join our community of developers creating universal apps.
+## Deploy the website (Vercel)
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Push this repo to GitHub.
+2. Vercel → Add New → Project → import the repo (settings come from `vercel.json`).
+3. Vercel → Project → Settings → Environment Variables: add the `EXPO_PUBLIC_*` values from `.env`.
+4. Add the Vercel hostname to your Turnstile widget's hostname list.
+
+## Keep Supabase awake
+
+GitHub repo → Settings → Secrets and variables → Actions → add `SUPABASE_URL` and `SUPABASE_KEY`.
+The workflow pings the database every 3 days. (GitHub disables scheduled workflows after 60 days
+without commits — re-enable it from the Actions tab if that happens.)
+
+## Install on your own iPhone (free, by cable)
+
+Needs Xcode + CocoaPods. With the phone plugged in and Developer Mode on:
+
+```bash
+npx expo run:ios --device --configuration Release
+```
+
+Free Apple IDs: the app expires after 7 days; re-run to reinstall.
+
+## Moderation
+
+- Reports: Supabase → Table Editor → `reports`.
+- Anything reported by 3 different people is hidden automatically (`is_hidden = true`). Set it back to `false` to restore.
