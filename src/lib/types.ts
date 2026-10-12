@@ -44,6 +44,31 @@ export const CUISINES = [
   'Mexican', 'Middle Eastern', 'Thai', 'Vietnamese', 'Cafe', 'Bakery', 'Pizza', 'Other',
 ] as const;
 
+/** Flag for country cuisines; a food emoji where there's no single country. */
+const CUISINE_ICONS: Record<string, string> = {
+  American: '🇺🇸',
+  Chinese: '🇨🇳',
+  Indian: '🇮🇳',
+  Italian: '🇮🇹',
+  Japanese: '🇯🇵',
+  Korean: '🇰🇷',
+  Mediterranean: '🫒',
+  Mexican: '🇲🇽',
+  'Middle Eastern': '🧆',
+  Thai: '🇹🇭',
+  Vietnamese: '🇻🇳',
+  Cafe: '☕',
+  Bakery: '🥐',
+  Pizza: '🍕',
+  Other: '🍽️',
+};
+
+/** "🇮🇳 Indian" — falls back to the plain name for cuisines without an icon. */
+export function cuisineLabel(name: string): string {
+  const icon = CUISINE_ICONS[name];
+  return icon ? `${icon} ${name}` : name;
+}
+
 /** Must-try / mixed / skip, from what people said about a dish. */
 export function verdict(d: Pick<DishSummary, 'likes' | 'dislikes'>): 'must-try' | 'mixed' | 'skip' | 'untried' {
   const total = d.likes + d.dislikes;
