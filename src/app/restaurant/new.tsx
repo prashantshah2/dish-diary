@@ -6,7 +6,7 @@ import { ContributorGate, NameField } from '@/components/contributor-gate';
 import { AppText, Button, Card, Chip, Field, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { friendlyError, supabase } from '@/lib/supabase';
-import { CUISINES, cuisineLabel } from '@/lib/types';
+import { CUISINES } from '@/lib/types';
 import { space } from '@/lib/theme';
 
 export default function NewRestaurantScreen() {
@@ -52,7 +52,7 @@ export default function NewRestaurantScreen() {
               <AppText variant="label">Cuisine</AppText>
               <Row wrap>
                 {CUISINES.map((c) => (
-                  <Chip key={c} label={cuisineLabel(c)} selected={cuisine === c} onPress={() => setCuisine(cuisine === c ? null : c)} />
+                  <Chip key={c} label={c} selected={cuisine === c} onPress={() => setCuisine(cuisine === c ? null : c)} />
                 ))}
               </Row>
             </View>

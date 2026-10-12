@@ -9,7 +9,7 @@ import { ReportButton } from '@/components/report-button';
 import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { friendlyError, supabase } from '@/lib/supabase';
-import { cuisineLabel, verdict, type DishSummary, type RestaurantSummary } from '@/lib/types';
+import { verdict, type DishSummary, type RestaurantSummary } from '@/lib/types';
 import { MAX_CONTENT_WIDTH, radius, space, useBreakpoint, useColors } from '@/lib/theme';
 
 const SECTIONS = [
@@ -69,7 +69,7 @@ export default function RestaurantScreen() {
     <View style={{ gap: space.xs }}>
       <AppText variant="title">{restaurant.name}</AppText>
       <AppText variant="muted">
-        {[restaurant.cuisine && cuisineLabel(restaurant.cuisine), restaurant.price_level ? '$'.repeat(restaurant.price_level) : null].filter(Boolean).join(' · ')}
+        {[restaurant.cuisine, restaurant.price_level ? '$'.repeat(restaurant.price_level) : null].filter(Boolean).join(' · ')}
       </AppText>
       {(restaurant.address || restaurant.city) && (
         <AppText variant="muted">{[restaurant.address, restaurant.city].filter(Boolean).join(', ')}</AppText>

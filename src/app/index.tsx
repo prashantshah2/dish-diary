@@ -4,7 +4,7 @@ import { Pressable } from 'react-native';
 
 import { AppText, Button, Card, Chip, EmptyState, Field, Grid, Loading, Notice, Row, Screen } from '@/components/ui';
 import { friendlyError, supabase } from '@/lib/supabase';
-import { CUISINES, cuisineLabel, type RestaurantSummary } from '@/lib/types';
+import { CUISINES, type RestaurantSummary } from '@/lib/types';
 import { space } from '@/lib/theme';
 
 /** Escape characters that have special meaning in a SQL LIKE pattern. */
@@ -61,7 +61,7 @@ export default function RestaurantsScreen() {
       <Row wrap style={{ gap: space.xs + 2 }}>
         <Chip label="All" selected={!cuisine} onPress={() => setCuisine(null)} />
         {CUISINES.map((name) => (
-          <Chip key={name} label={cuisineLabel(name)} selected={cuisine === name} onPress={() => setCuisine(cuisine === name ? null : name)} />
+          <Chip key={name} label={name} selected={cuisine === name} onPress={() => setCuisine(cuisine === name ? null : name)} />
         ))}
       </Row>
 
@@ -91,7 +91,7 @@ function RestaurantCard({ r }: { r: RestaurantSummary }) {
             {r.name}
           </AppText>
           <AppText variant="muted" numberOfLines={1}>
-            {[r.cuisine && cuisineLabel(r.cuisine), r.price_level ? '$'.repeat(r.price_level) : null, r.city].filter(Boolean).join(' · ') || ' '}
+            {[r.cuisine, r.price_level ? '$'.repeat(r.price_level) : null, r.city].filter(Boolean).join(' · ') || ' '}
           </AppText>
           <AppText variant="small">
             {r.dish_count} {r.dish_count === 1 ? 'dish' : 'dishes'} · {r.review_count}{' '}
