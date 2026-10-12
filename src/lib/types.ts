@@ -41,7 +41,7 @@ export type ReportTarget = 'restaurant' | 'dish' | 'review';
 
 export const CUISINES = [
   'American', 'Chinese', 'Indian', 'Italian', 'Japanese', 'Korean', 'Mediterranean',
-  'Mexican', 'Middle Eastern', 'Thai', 'Vietnamese', 'Cafe', 'Bakery', 'Pizza', 'Other',
+  'Mexican', 'Middle Eastern', 'Thai', 'Vietnamese', 'Cafe', 'Bakery', 'Bar', 'Pizza', 'Other',
 ] as const;
 
 /** Flag for country cuisines; a food emoji where there's no single country. */
@@ -59,6 +59,7 @@ const CUISINE_ICONS: Record<string, string> = {
   Vietnamese: '🇻🇳',
   Cafe: '☕',
   Bakery: '🥐',
+  Bar: '🍺',
   Pizza: '🍕',
   Other: '🍽️',
 };
