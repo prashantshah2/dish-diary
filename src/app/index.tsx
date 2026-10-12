@@ -1,6 +1,6 @@
 import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView } from 'react-native';
+import { Pressable } from 'react-native';
 
 import { AppText, Button, Card, Chip, EmptyState, Field, Grid, Loading, Notice, Row, Screen } from '@/components/ui';
 import { friendlyError, supabase } from '@/lib/supabase';
@@ -57,12 +57,13 @@ export default function RestaurantsScreen() {
         returnKeyType="search"
       />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+      {/* Wraps onto extra lines so every cuisine is visible without sideways scrolling. */}
+      <Row wrap style={{ gap: space.xs + 2 }}>
         <Chip label="All" selected={!cuisine} onPress={() => setCuisine(null)} />
         {CUISINES.map((name) => (
           <Chip key={name} label={name} selected={cuisine === name} onPress={() => setCuisine(cuisine === name ? null : name)} />
         ))}
-      </ScrollView>
+      </Row>
 
       <Notice message={error} />
 

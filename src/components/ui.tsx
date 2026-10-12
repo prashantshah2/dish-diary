@@ -198,16 +198,17 @@ export function Chip({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
+      hitSlop={4}
       style={({ pressed }) => ({
-        paddingHorizontal: space.md,
-        paddingVertical: space.xs + 2,
+        paddingHorizontal: space.sm + 2,
+        paddingVertical: space.xs,
         borderRadius: radius.pill,
         borderWidth: 1,
         borderColor: selected ? c.primary : c.border,
         backgroundColor: selected ? c.primary : c.surface,
         opacity: pressed ? 0.8 : 1,
       })}>
-      <Text style={{ color: selected ? c.onPrimary : c.text, fontSize: 14, fontWeight: '500' }}>
+      <Text style={{ color: selected ? c.onPrimary : c.text, fontSize: 13, fontWeight: '500' }}>
         {label}
       </Text>
     </Pressable>
