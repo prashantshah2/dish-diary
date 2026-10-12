@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ContributorGate, NameField } from '@/components/contributor-gate';
+import { Select } from '@/components/select';
 import { AppText, Button, Card, Chip, Field, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { friendlyError, supabase } from '@/lib/supabase';
-import { CUISINES } from '@/lib/types';
+import { CUISINES, cuisineLabel } from '@/lib/types';
 import { space } from '@/lib/theme';
 
 export default function NewRestaurantScreen() {
@@ -48,14 +49,7 @@ export default function NewRestaurantScreen() {
         <ContributorGate>
           <Card style={{ gap: space.lg }}>
             <Field label="Name *" value={name} onChangeText={setName} placeholder="e.g. Taj Palace" maxLength={120} />
-            <View style={{ gap: space.xs }}>
-              <AppText variant="label">Cuisine</AppText>
-              <Row wrap>
-                {CUISINES.map((c) => (
-                  <Chip key={c} label={c} selected={cuisine === c} onPress={() => setCuisine(cuisine === c ? null : c)} />
-                ))}
-              </Row>
-            </View>
+            <Select label="Cuisine" value={cuisine} options={CUISINES} onChange={setCuisine} placeholder="Choose a cuisine" formatOption={cuisineLabel} noneLabel="No cuisine" />
             <View style={{ gap: space.xs }}>
               <AppText variant="label">Price</AppText>
               <Row wrap>
