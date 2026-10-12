@@ -44,3 +44,7 @@ example
 
 # Supabase / Turnstile keys — never commit
 .env
+# Editor swap/backup files (can contain .env contents)
+*.swp
+*.swo
+*~
