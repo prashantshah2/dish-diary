@@ -34,7 +34,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Dish Diary uses your location to find restaurants near you when you add one."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

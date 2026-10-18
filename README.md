@@ -35,6 +35,17 @@ Breakpoints live in `src/lib/theme.ts` (`useBreakpoint`).
 1. **Database:** Supabase → SQL Editor → New query → paste `supabase/schema.sql` → Run.
 2. **Auth:** Supabase → Authentication → enable *Anonymous sign-ins* and *CAPTCHA (Turnstile)* with your Turnstile **secret** key.
 3. **Keys:** fill in `.env` (copied from `.env.example`). Only public keys go here.
+4. **Existing projects only:** run any files in `supabase/migrations/` that you haven't run yet
+   (SQL Editor → paste → Run). `schema.sql` already includes them for new projects.
+
+## Restaurant lookup
+
+"Find the restaurant" on the add form searches [Photon](https://photon.komoot.io)
+(free OpenStreetMap search by komoot — no key or account). Results are limited to ~30 km
+around the visitor when they share location, falling back to everywhere if nothing matches.
+Picking a result fills name, street and city and stores the OpenStreetMap id (`osm_id`) so the
+same place can't be added twice. The public instance is fair-use and throttles heavy traffic;
+results must stay credited "© OpenStreetMap contributors". Code: `src/lib/place-lookup.ts`.
 
 ## Run locally
 

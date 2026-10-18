@@ -13,15 +13,18 @@ create table public.restaurants (
   city        text check (char_length(city) <= 80),
   cuisine     text check (char_length(cuisine) <= 40),
   price_level smallint check (price_level between 1 and 4),
+  osm_id      text check (char_length(osm_id) <= 40), -- map place it was picked from, e.g. 'N2501812416'
   created_by  uuid default auth.uid() references auth.users (id) on delete set null,
   author_name text check (char_length(author_name) <= 40),
   is_hidden   boolean not null default false,
   created_at  timestamptz not null default now()
 );
 
--- Prevent obvious duplicates: same name at the same address.
+-- Prevent obvious duplicates: same name at the same address, or the same map place.
 create unique index restaurants_name_address_key
   on public.restaurants (lower(trim(name)), lower(trim(coalesce(address, ''))));
+create unique index restaurants_osm_id_key
+  on public.restaurants (osm_id) where osm_id is not null;
 
 create table public.dishes (
   id            uuid primary key default gen_random_uuid(),
@@ -102,7 +105,7 @@ grant select on public.restaurants, public.dishes, public.reviews,
                 public.dish_summaries, public.restaurant_summaries
   to anon, authenticated;
 
-grant insert (name, address, city, cuisine, price_level, author_name)
+grant insert (name, address, city, cuisine, price_level, osm_id, author_name)
   on public.restaurants to authenticated;
 grant update (name, address, city, cuisine, price_level, author_name)
   on public.restaurants to authenticated;
