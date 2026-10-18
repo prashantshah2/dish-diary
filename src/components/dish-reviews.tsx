@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { formatISODate } from '@/lib/dates';
 import { friendlyError, supabase } from '@/lib/supabase';
 import type { DishSummary, Review } from '@/lib/types';
 import { space } from '@/lib/theme';
@@ -121,7 +122,7 @@ function ReviewBody({ review }: { review: Review }) {
       </Row>
       {review.note ? <AppText>{review.note}</AppText> : null}
       <AppText variant="small">
-        {review.visited_on ? `Visited ${review.visited_on} · ` : ''}
+        {review.visited_on ? `Visited ${formatISODate(review.visited_on)} · ` : ''}
         Posted {new Date(review.created_at).toLocaleDateString()}
       </AppText>
     </View>
