@@ -3,7 +3,74 @@
 See which dishes people liked (and which to skip) at restaurants near you.
 One Expo codebase runs as a website (Vercel) and as an iPhone app.
 
-**Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres, anonymous auth, RLS) · Cloudflare Turnstile (CAPTCHA) · Vercel (web hosting)
+**Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres + RLS, Auth, Storage) · Cloudflare Turnstile (CAPTCHA) · Photon / OpenStreetMap (place search) · Vercel (web hosting)
+
+## Architecture
+
+![Dish Diary architecture](doc/architecture.png)
+
+<details>
+<summary>Diagram source (Mermaid)</summary>
+
+Edit this, then regenerate the image with
+`npx -y @mermaid-js/mermaid-cli -i arch.mmd -o doc/architecture.png -w 1600 -s 2 -b white`
+(after saving the block below as `arch.mmd`).
+
+```mermaid
+flowchart LR
+  People["People<br/>web browser or iPhone"]
+  App["Dish Diary app<br/>one Expo codebase<br/>website + iPhone app"]
+
+  subgraph deploy ["Code and hosting"]
+    GH["GitHub repo"]
+    Vercel["Vercel<br/>builds and hosts the website"]
+    GHA["GitHub Actions<br/>keep-alive every 3 days"]
+  end
+
+  subgraph supa ["Supabase - free tier"]
+    Auth["Auth<br/>anonymous, password, admin link"]
+    DB[("Postgres database<br/>restaurants, dishes, reviews,<br/>reports, photos, admins<br/>row-level security")]
+    Storage[("Storage<br/>review photos")]
+  end
+
+  Turnstile["Cloudflare Turnstile<br/>CAPTCHA"]
+  Photon["Photon / OpenStreetMap<br/>place search and address lookup"]
+  GPS["Device location"]
+
+  People -->|"uses"| App
+  GH -->|"push to main"| Vercel
+  Vercel -->|"serves website"| App
+  GH --> GHA
+  GHA -->|"tiny read"| DB
+
+  App -->|"CAPTCHA check"| Turnstile
+  App -->|"sign in with CAPTCHA token"| Auth
+  Auth -->|"verifies token"| Turnstile
+  App -->|"read and write data"| DB
+  App -->|"upload and view photos"| Storage
+  App -->|"find restaurants"| Photon
+  App -->|"Near me"| GPS
+```
+
+</details>
+
+| Piece | What it does | Free-tier notes |
+|---|---|---|
+| **Expo app** (`src/`) | One TypeScript codebase: website via `expo export`, iPhone app via Expo Go / `expo run:ios` / EAS | — |
+| **Vercel** | Builds the web app from GitHub on every push to `main` and serves it (`vercel.json`) | Hobby plan, non-commercial |
+| **Supabase Auth** | Anonymous accounts (after CAPTCHA), optional email + password accounts, admin magic-link sign-in | Built-in email only reaches project team addresses |
+| **Supabase Postgres** | All data; security enforced in the database with RLS, column grants and triggers (`supabase/`) | 500 MB; pauses after ~7 idle days (hence keep-alive) |
+| **Supabase Storage** | Review photos, shrunk on the device before upload | 1 GB storage, 5 GB egress / month |
+| **Cloudflare Turnstile** | CAPTCHA before anyone can post or sign in; Supabase checks each token with the secret key | Free |
+| **Photon / OpenStreetMap** | "Find the restaurant" search and address → coordinates for Near me; called directly from the app, no key | Fair use; credit "© OpenStreetMap contributors" |
+| **Device location** | Location for nearby search results and Near me; asked only when used | — |
+| **GitHub Actions** | `keep-alive.yml` pings the database so the free project doesn't pause | Free |
+
+**What happens when someone posts a review:** the app shows Turnstile → gets a one-time token →
+Supabase Auth checks it with Cloudflare and creates an anonymous session (or the person signs in) →
+the review is written straight to Postgres, where RLS makes sure it's tied to that session and only
+its author (or an admin) can change it → photos are resized on the device and uploaded to Storage
+under the author's own folder.
 
 ## Project layout
 
