@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppShell } from '@/components/app-shell';
+import { HomeButton } from '@/components/home-button';
 import { AuthProvider } from '@/lib/auth';
 import { useColors } from '@/lib/theme';
 
@@ -23,11 +24,13 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <AppShell>
             <Stack
-              screenOptions={{
+              screenOptions={({ route }) => ({
                 headerTintColor: c.primary,
                 headerTitleStyle: { color: c.text },
                 contentStyle: { backgroundColor: c.background },
-              }}>
+                // Every page except the restaurant list gets a Home button.
+                headerRight: route.name === 'index' ? undefined : () => <HomeButton />,
+              })}>
               <Stack.Screen name="index" options={{ title: 'Dish Diary' }} />
               <Stack.Screen name="restaurant/new" options={{ title: 'Add a restaurant' }} />
               <Stack.Screen name="restaurant/[id]" options={{ title: 'Restaurant' }} />
