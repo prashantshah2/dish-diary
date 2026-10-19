@@ -3,11 +3,13 @@ import { View } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
 import { formatISODate } from '@/lib/dates';
+import { removePhotosForReviews } from '@/lib/photos';
 import { friendlyError, supabase } from '@/lib/supabase';
-import type { DishSummary, Review } from '@/lib/types';
+import type { DishSummary, Review, ReviewPhoto } from '@/lib/types';
 import { space } from '@/lib/theme';
 
 import { AdminBar, DishRenameForm, HiddenBadge } from './admin-tools';
+import { PhotoStrip } from './photo-viewer';
 import { LikeCounts, Stars, VerdictBadge } from './rating';
 import { ReportButton } from './report-button';
 import { ReviewForm } from './review-form';
@@ -29,6 +31,7 @@ export function DishReviews({
   const [adminEditing, setAdminEditing] = useState<string | null>(null);
   const [dish, setDish] = useState<DishSummary | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [photos, setPhotos] = useState<Record<string, ReviewPhoto[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -40,19 +43,32 @@ export function DishReviews({
     Promise.all([
       supabase.from('dish_summaries').select('*').eq('id', dishId).maybeSingle(),
       supabase.from('reviews').select('*').eq('dish_id', dishId).order('created_at', { ascending: false }),
-    ]).then(([d, r]) => {
+    ]).then(async ([d, r]) => {
       if (!active) return;
       setError(d.error || r.error ? friendlyError(d.error ?? r.error) : null);
       setDish(d.data as DishSummary | null);
-      setReviews((r.data as Review[]) ?? []);
+      const list = (r.data as Review[]) ?? [];
+      setReviews(list);
       setLoading(false);
+      // Photos load separately so reviews still show if this part fails.
+      if (!list.length) return setPhotos({});
+      const { data: rows } = await supabase
+        .from('review_photos')
+        .select('*')
+        .in('review_id', list.map((x) => x.id))
+        .order('created_at');
+      if (!active) return;
+      const byReview: Record<string, ReviewPhoto[]> = {};
+      for (const p of (rows as ReviewPhoto[]) ?? []) (byReview[p.review_id] ??= []).push(p);
+      setPhotos(byReview);
     });
     return () => {
       active = false;
     };
   }, [dishId, version]);
 
-  const afterChange = () => {
+  const afterChange = (warning?: string) => {
+    setError(warning ?? null);
     setEditing(false);
     setRenaming(false);
     setAdminEditing(null);
@@ -68,6 +84,8 @@ export function DishReviews({
 
   const remove = async () => {
     if (!mine) return;
+    const photoError = await removePhotosForReviews([mine.id]);
+    if (photoError) return setError(`Couldn’t delete the photos: ${photoError}`);
     const { error: err } = await supabase.from('reviews').delete().eq('id', mine.id);
     if (err) setError(friendlyError(err));
     else afterChange();
@@ -99,7 +117,7 @@ export function DishReviews({
             type="dish"
             id={dish.id}
             hidden={dish.is_hidden}
-            onChanged={afterChange}
+            onChanged={() => afterChange()}
             onEdit={() => setRenaming(true)}
             onDeleted={() => {
               onChanged?.();
@@ -115,7 +133,7 @@ export function DishReviews({
       {mine && !editing ? (
         <Card>
           <AppText variant="label">Your review</AppText>
-          <ReviewBody review={mine} />
+          <ReviewBody review={mine} photos={photos[mine.id]} />
           <Row>
             <Button title="Edit" variant="secondary" compact onPress={() => setEditing(true)} />
             <Button title="Delete" variant="danger" compact onPress={remove} />
@@ -126,6 +144,7 @@ export function DishReviews({
           key={mine?.id ?? 'new'}
           dishId={dish.id}
           existing={mine}
+          existingPhotos={mine ? photos[mine.id] : undefined}
           onSaved={afterChange}
           onCancel={mine ? () => setEditing(false) : undefined}
         />
@@ -136,13 +155,21 @@ export function DishReviews({
       </AppText>
       {others.map((r) =>
         adminEditing === r.id ? (
-          <ReviewForm key={r.id} dishId={dish.id} existing={r} asAdmin onSaved={afterChange} onCancel={() => setAdminEditing(null)} />
+          <ReviewForm
+            key={r.id}
+            dishId={dish.id}
+            existing={r}
+            existingPhotos={photos[r.id]}
+            asAdmin
+            onSaved={afterChange}
+            onCancel={() => setAdminEditing(null)}
+          />
         ) : (
           <Card key={r.id}>
             <HiddenBadge hidden={r.is_hidden} />
-            <ReviewBody review={r} />
+            <ReviewBody review={r} photos={photos[r.id]} />
             <ReportButton type="review" id={r.id} />
-            <AdminBar type="review" id={r.id} hidden={r.is_hidden} onChanged={afterChange} onEdit={() => setAdminEditing(r.id)} />
+            <AdminBar type="review" id={r.id} hidden={r.is_hidden} onChanged={() => afterChange()} onEdit={() => setAdminEditing(r.id)} />
           </Card>
         )
       )}
@@ -150,7 +177,7 @@ export function DishReviews({
   );
 }
 
-function ReviewBody({ review }: { review: Review }) {
+function ReviewBody({ review, photos = [] }: { review: Review; photos?: ReviewPhoto[] }) {
   return (
     <View style={{ gap: space.xs }}>
       <Row wrap>
@@ -158,6 +185,7 @@ function ReviewBody({ review }: { review: Review }) {
         <Stars value={review.rating} size={14} />
       </Row>
       {review.note ? <AppText>{review.note}</AppText> : null}
+      <PhotoStrip photos={photos} />
       <AppText variant="small">
         {review.visited_on ? `Visited ${formatISODate(review.visited_on)} · ` : ''}
         Posted {new Date(review.created_at).toLocaleDateString()}

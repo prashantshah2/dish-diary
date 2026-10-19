@@ -77,6 +77,19 @@ npx expo run:ios --device --configuration Release
 
 Free Apple IDs: the app expires after 7 days; re-run to reinstall.
 
+## Photos on reviews
+
+Anyone who has passed the CAPTCHA can attach up to 3 photos to their review (library or camera).
+Photos are shrunk on the device before upload — ≤1280 px JPEG at 70% (~150–250 KB) plus a
+≤400 px thumbnail (~25 KB) — which also strips EXIF/GPS. Lists load thumbnails only; tapping opens
+the full photo. At ~250 KB per photo the free 1 GB holds roughly 4,000 photos.
+
+Enforced server-side (migration `005_photos.sql`): bucket `review-photos` is public-read, 1 MB per
+file, JPEG only; uploads only into the uploader's own folder; 3 photos per review and 10 per person
+per 24 h. Files are deleted through the Storage API whenever their review, dish or restaurant is
+deleted. Admin page shows photo count/MB; the Excel export has a Photos sheet.
+Code: `src/lib/photos.ts`, `src/components/review-form.tsx`, `src/components/photo-viewer.tsx`.
+
 ## Near me
 
 "📍 Near me" on the main page lists reviewed restaurants within 2/5/10/25 miles of the visitor,

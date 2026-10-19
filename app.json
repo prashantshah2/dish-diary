@@ -40,6 +40,13 @@
         {
           "locationWhenInUsePermission": "Dish Diary uses your location to find restaurants near you when you add one."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dish Diary lets you attach photos of dishes to your reviews.",
+          "cameraPermission": "Dish Diary lets you take photos of dishes for your reviews."
+        }
       ]
     ],
     "experiments": {

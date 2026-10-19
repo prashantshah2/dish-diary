@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { removePhotosFor, removePhotosForReviews } from '@/lib/photos';
 import { geocodeAddress } from '@/lib/place-lookup';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { CUISINES, cuisineLabel, type ReportTarget, type RestaurantSummary } from '@/lib/types';
@@ -64,10 +65,18 @@ export function AdminBar({
     run(() => supabase.from(TABLE[type]).update({ is_hidden: !hidden }).eq('id', id), onChanged);
 
   const remove = () =>
-    run(() => supabase.from(TABLE[type]).delete().eq('id', id), () => {
-      setConfirming(false);
-      (onDeleted ?? onChanged)();
-    });
+    run(
+      async () => {
+        // Photo files aren't removed by the database cascade, so delete them first.
+        const photoError = type === 'review' ? await removePhotosForReviews([id]) : await removePhotosFor(type, id);
+        if (photoError) return { error: { message: `Couldn’t delete photos: ${photoError}` } };
+        return supabase.from(TABLE[type]).delete().eq('id', id);
+      },
+      () => {
+        setConfirming(false);
+        (onDeleted ?? onChanged)();
+      }
+    );
 
   return (
     <View style={{ gap: space.xs, borderLeftWidth: 3, borderLeftColor: c.primary, paddingLeft: space.sm }}>

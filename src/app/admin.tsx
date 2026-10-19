@@ -41,6 +41,7 @@ export default function AdminScreen() {
         Signed in as {session?.user.email}. While signed in you’ll see Edit, Hide and Delete on every restaurant, dish
         and review, including hidden ones.
       </AppText>
+      <PhotoStorageCard />
       <ExportCard />
       <ReportsList />
     </Screen>
@@ -126,6 +127,45 @@ function AdminSignIn() {
         </Card>
       </View>
     </Screen>
+  );
+}
+
+const FREE_STORAGE_BYTES = 1024 ** 3; // Supabase Free: 1 GB
+
+function PhotoStorageCard() {
+  const [usage, setUsage] = useState<{ count: number; bytes: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from('review_photos')
+      .select('bytes')
+      .limit(100000)
+      .then(({ data, error: err }) => {
+        if (!active) return;
+        if (err) return setError(friendlyError(err));
+        setUsage({ count: data.length, bytes: data.reduce((sum, r) => sum + (r.bytes ?? 0), 0) });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <Card>
+      <AppText variant="heading">Photo storage</AppText>
+      {usage ? (
+        <AppText>
+          {usage.count} photo{usage.count === 1 ? '' : 's'} · {(usage.bytes / 1024 ** 2).toFixed(1)} MB of 1 GB (
+          {((usage.bytes / FREE_STORAGE_BYTES) * 100).toFixed(1)}%)
+        </AppText>
+      ) : (
+        !error && <Loading />
+      )}
+      <AppText variant="small">Exact usage, including egress: Supabase → Settings → Usage.</AppText>
+      <Notice message={error} />
+    </Card>
   );
 }
 

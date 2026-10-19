@@ -1,4 +1,5 @@
 import { todayISO } from './dates';
+import { photoUrl } from './photos';
 import { supabase } from './supabase';
 
 type Row = Record<string, unknown>;
@@ -20,16 +21,17 @@ async function fetchAll(table: string, select: string): Promise<Row[]> {
 }
 
 /**
- * Downloads every restaurant, dish, review and report — hidden ones included —
+ * Downloads every restaurant, dish, review, report and photo link — hidden ones included —
  * as one Excel workbook with a sheet per table. Admins only (RLS lets admins
  * read everything); web only, since it saves through the browser.
  */
 export async function exportAllToExcel(): Promise<{ fileName: string; counts: Record<string, number> }> {
-  const [restaurants, dishes, reviews, reports] = await Promise.all([
+  const [restaurants, dishes, reviews, reports, photos] = await Promise.all([
     fetchAll('restaurants', '*'),
     fetchAll('dishes', '*, restaurants(name)'),
     fetchAll('reviews', '*, dishes(name, restaurants(name))'),
     fetchAll('reports', '*'),
+    fetchAll('review_photos', '*, reviews(author_name, dishes(name, restaurants(name)))'),
   ]);
 
   // Replace nested objects with readable name columns.
@@ -42,6 +44,18 @@ export async function exportAllToExcel(): Promise<{ fileName: string; counts: Re
     return { ...v, dish_name: dish?.name ?? '', restaurant_name: dish?.restaurants?.name ?? '' };
   });
 
+  const photoRows = photos.map(({ reviews: v, ...p }) => {
+    const review = v as { author_name?: string; dishes?: { name?: string; restaurants?: { name?: string } | null } | null } | null;
+    return {
+      ...p,
+      author_name: review?.author_name ?? '',
+      dish_name: review?.dishes?.name ?? '',
+      restaurant_name: review?.dishes?.restaurants?.name ?? '',
+      photo_url: photoUrl(p.path as string),
+      thumbnail_url: photoUrl(p.thumb_path as string),
+    };
+  });
+
   // Loaded on demand so the spreadsheet library isn't in every visitor's download.
   const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
@@ -50,6 +64,7 @@ export async function exportAllToExcel(): Promise<{ fileName: string; counts: Re
     ['Dishes', dishRows],
     ['Reviews', reviewRows],
     ['Reports', reports],
+    ['Photos', photoRows],
   ];
   for (const [name, rows] of sheets) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), name);

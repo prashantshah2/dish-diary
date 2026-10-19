@@ -84,3 +84,17 @@ export function verdict(d: Pick<DishSummary, 'likes' | 'dislikes'>): 'must-try' 
   if (ratio <= 0.3) return 'skip';
   return 'mixed';
 }
+
+export type ReviewPhoto = {
+  id: string;
+  review_id: string;
+  user_id: string | null;
+  path: string;
+  thumb_path: string;
+  width: number | null;
+  height: number | null;
+  bytes: number;
+  created_at: string;
+};
+
+export const MAX_PHOTOS_PER_REVIEW = 3;

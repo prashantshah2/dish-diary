@@ -2,11 +2,14 @@ import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { PhotoStrip } from '@/components/photo-viewer';
 import { Stars } from '@/components/rating';
 import { Turnstile } from '@/components/turnstile';
 import { AppText, Button, Card, Chip, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { removePhotosForReviews } from '@/lib/photos';
 import { friendlyError, supabase } from '@/lib/supabase';
+import type { ReviewPhoto } from '@/lib/types';
 import { space } from '@/lib/theme';
 
 export default function AccountScreen() {
@@ -93,6 +96,7 @@ type MyReview = {
   note: string | null;
   created_at: string;
   dishes: { name: string; restaurants: { name: string } | null } | null;
+  review_photos: ReviewPhoto[];
 };
 
 function SignedIn() {
@@ -109,7 +113,7 @@ function SignedIn() {
     let active = true;
     supabase
       .from('reviews')
-      .select('id, dish_id, liked, rating, note, created_at, dishes(name, restaurants(name))')
+      .select('id, dish_id, liked, rating, note, created_at, dishes(name, restaurants(name)), review_photos(*)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .then(({ data, error: err }) => {
@@ -132,6 +136,8 @@ function SignedIn() {
   };
 
   const remove = async (id: string) => {
+    const photoError = await removePhotosForReviews([id]);
+    if (photoError) return setError(`Couldn’t delete the photos: ${photoError}`);
     const { error: err } = await supabase.from('reviews').delete().eq('id', id);
     if (err) setError(friendlyError(err));
     else setVersion((v) => v + 1);
@@ -169,6 +175,7 @@ function SignedIn() {
             </Link>
             <Stars value={r.rating} size={14} />
             {r.note ? <AppText>{r.note}</AppText> : null}
+            <PhotoStrip photos={r.review_photos ?? []} size={56} />
             <Row>
               <Button
                 title="Edit"
