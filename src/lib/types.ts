@@ -11,6 +11,8 @@ export type RestaurantSummary = {
   dish_count: number;
   review_count: number;
   is_hidden: boolean;
+  lat: number | null;
+  lng: number | null;
 };
 
 export type DishSummary = {

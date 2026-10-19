@@ -1,30 +1,11 @@
-import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { searchPlaces, type Coords, type PlaceResult } from '@/lib/place-lookup';
+import { getCoords, type Coords } from '@/lib/location';
+import { searchPlaces, type PlaceResult } from '@/lib/place-lookup';
 import { radius, space, useColors } from '@/lib/theme';
 
 import { AppText, Field, Loading } from './ui';
-
-// Asked at most once per visit; null means "denied or unavailable — search without it".
-let cachedCoords: Promise<Coords | null> | null = null;
-
-function getCoords(): Promise<Coords | null> {
-  cachedCoords ??= (async () => {
-    try {
-      const { granted } = await Location.requestForegroundPermissionsAsync();
-      if (!granted) return null;
-      const pos =
-        (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1000 })) ??
-        (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }));
-      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-    } catch {
-      return null;
-    }
-  })();
-  return cachedCoords;
-}
 
 /** "Find the restaurant" box: type a name or address, pick a match to fill the form. */
 export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { geocodeAddress } from '@/lib/place-lookup';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { CUISINES, cuisineLabel, type ReportTarget, type RestaurantSummary } from '@/lib/types';
 import { radius, space, useColors } from '@/lib/theme';
@@ -112,9 +113,19 @@ export function RestaurantEditForm({
   const save = async () => {
     if (!name.trim()) return setError('Name can’t be empty.');
     setBusy(true);
+    // Address changed → look up its map position again (null if it can't be found).
+    const moved = address.trim() !== (restaurant.address ?? '') || city.trim() !== (restaurant.city ?? '');
+    const coords = moved ? await geocodeAddress(address, city, null) : undefined;
     const { error: err } = await supabase
       .from('restaurants')
-      .update({ name: name.trim(), cuisine, price_level: price, address: address.trim() || null, city: city.trim() || null })
+      .update({
+        name: name.trim(),
+        cuisine,
+        price_level: price,
+        address: address.trim() || null,
+        city: city.trim() || null,
+        ...(moved ? { lat: coords?.latitude ?? null, lng: coords?.longitude ?? null } : {}),
+      })
       .eq('id', restaurant.id);
     setBusy(false);
     if (err) setError(friendlyError(err));

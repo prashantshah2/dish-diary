@@ -4,9 +4,14 @@ import { Pressable } from 'react-native';
 
 import { HiddenBadge } from '@/components/admin-tools';
 import { AppText, Button, Card, Chip, EmptyState, Field, Grid, Loading, Notice, Row, Screen } from '@/components/ui';
+import { boxAround, distanceMiles, formatMiles, locate, locateErrorMessage, type Coords } from '@/lib/location';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { CUISINES, cuisineLabel, type RestaurantSummary } from '@/lib/types';
 import { space } from '@/lib/theme';
+
+const RADII_MILES = [2, 5, 10, 25];
+
+type Listed = RestaurantSummary & { distance?: number };
 
 /** Escape characters that have special meaning in a SQL LIKE pattern. */
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`);
@@ -15,8 +20,22 @@ export default function RestaurantsScreen() {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [cuisine, setCuisine] = useState<string | null>(null);
-  const [items, setItems] = useState<RestaurantSummary[] | null>(null);
+  const [items, setItems] = useState<Listed[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // "Near me": reviewed places within `radius` miles of `here`, nearest first.
+  const [here, setHere] = useState<Coords | null>(null);
+  const [radius, setRadius] = useState(10);
+  const [locating, setLocating] = useState(false);
+
+  const toggleNearMe = async () => {
+    if (here) return setHere(null);
+    setLocating(true);
+    setError(null);
+    const result = await locate();
+    setLocating(false);
+    if ('coords' in result) setHere(result.coords);
+    else setError(locateErrorMessage(result.error));
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
@@ -30,10 +49,27 @@ export default function RestaurantsScreen() {
       q = q.or(`name.ilike.${JSON.stringify(pattern)},city.ilike.${JSON.stringify(pattern)}`);
     }
     if (cuisine) q = q.eq('cuisine', cuisine);
+    if (here) {
+      // Cheap box filter in the database, exact distance below.
+      const box = boxAround(here, radius);
+      q = q
+        .gt('review_count', 0)
+        .gte('lat', box.minLat)
+        .lte('lat', box.maxLat)
+        .gte('lng', box.minLng)
+        .lte('lng', box.maxLng);
+    }
     const { data, error: err } = await q;
     setError(err ? friendlyError(err) : null);
-    setItems((data as RestaurantSummary[]) ?? []);
-  }, [debounced, cuisine]);
+    let rows: Listed[] = (data as RestaurantSummary[]) ?? [];
+    if (here) {
+      rows = rows
+        .map((r) => ({ ...r, distance: distanceMiles(here, { latitude: r.lat!, longitude: r.lng! }) }))
+        .filter((r) => r.distance <= radius)
+        .sort((a, b) => a.distance - b.distance);
+    }
+    setItems(rows);
+  }, [debounced, cuisine, here, radius]);
 
   // Reload whenever this screen comes back into view (e.g. after adding a place).
   useFocusEffect(
@@ -66,14 +102,31 @@ export default function RestaurantsScreen() {
         ))}
       </Row>
 
+      <Row wrap style={{ gap: space.xs + 2 }}>
+        <Chip label={locating ? '📍 Finding you…' : '📍 Near me'} selected={!!here} onPress={toggleNearMe} />
+        {here &&
+          RADII_MILES.map((mi) => (
+            <Chip key={mi} label={`${mi} mi`} selected={radius === mi} onPress={() => setRadius(mi)} />
+          ))}
+      </Row>
+      {here && (
+        <AppText variant="small">Reviewed restaurants within {radius} miles of you, nearest first.</AppText>
+      )}
+
       <Notice message={error} />
 
       {items === null ? (
         <Loading />
       ) : items.length === 0 ? (
         <EmptyState
-          title={debounced || cuisine ? 'No matches' : 'No restaurants yet'}
-          body={debounced || cuisine ? 'Try a different search, or add the place yourself.' : 'Be the first to add a place you’ve eaten at.'}
+          title={here ? `No reviewed restaurants within ${radius} miles` : debounced || cuisine ? 'No matches' : 'No restaurants yet'}
+          body={
+            here
+              ? 'Try a bigger distance, or add a place near you and review it.'
+              : debounced || cuisine
+                ? 'Try a different search, or add the place yourself.'
+                : 'Be the first to add a place you’ve eaten at.'
+          }
           action={<Button title="Add a restaurant" onPress={() => router.push('/restaurant/new')} />}
         />
       ) : (
@@ -83,7 +136,7 @@ export default function RestaurantsScreen() {
   );
 }
 
-function RestaurantCard({ r }: { r: RestaurantSummary }) {
+function RestaurantCard({ r }: { r: Listed }) {
   return (
     <Link href={{ pathname: '/restaurant/[id]', params: { id: r.id } }} asChild>
       <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, height: '100%' })}>
@@ -96,6 +149,7 @@ function RestaurantCard({ r }: { r: RestaurantSummary }) {
             {[r.cuisine && cuisineLabel(r.cuisine), r.price_level ? '$'.repeat(r.price_level) : null, r.city].filter(Boolean).join(' · ') || ' '}
           </AppText>
           <AppText variant="small">
+            {r.distance != null ? `📍 ${formatMiles(r.distance)} · ` : ''}
             {r.dish_count} {r.dish_count === 1 ? 'dish' : 'dishes'} · {r.review_count}{' '}
             {r.review_count === 1 ? 'review' : 'reviews'}
           </AppText>

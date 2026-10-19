@@ -7,7 +7,7 @@ import { PlaceSearch } from '@/components/place-search';
 import { Select } from '@/components/select';
 import { AppText, Button, Card, Chip, Field, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import type { PlaceResult } from '@/lib/place-lookup';
+import { geocodeAddress, type PlaceResult } from '@/lib/place-lookup';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { CUISINES, cuisineLabel } from '@/lib/types';
 import { space, useColors } from '@/lib/theme';
@@ -21,6 +21,8 @@ export default function NewRestaurantScreen() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [osmId, setOsmId] = useState<string | null>(null);
+  // Map position from the search pick; typed-in addresses are looked up when saving.
+  const [picked, setPicked] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [existing, setExisting] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export default function NewRestaurantScreen() {
     }
     setExisting(null);
     setOsmId(place.osmId);
+    setPicked({ latitude: place.latitude, longitude: place.longitude, address: place.street });
     setName(place.name);
     setAddress(place.street);
     setCity(place.city);
@@ -46,6 +49,7 @@ export default function NewRestaurantScreen() {
 
   const clearPick = () => {
     setOsmId(null);
+    setPicked(null);
     setName('');
     setAddress('');
     setCity('');
@@ -55,6 +59,11 @@ export default function NewRestaurantScreen() {
     if (!name.trim()) return setError('Please enter the restaurant name.');
     setBusy(true);
     setError(null);
+    // Keep the picked position unless they changed the street afterwards.
+    const coords =
+      picked && picked.address === address
+        ? picked
+        : await geocodeAddress(address, city, picked);
     const { data, error: err } = await supabase
       .from('restaurants')
       .insert({
@@ -64,6 +73,7 @@ export default function NewRestaurantScreen() {
         address: address.trim() || null,
         city: city.trim() || null,
         ...(osmId ? { osm_id: osmId } : {}), // only sent when picked from search
+        ...(coords ? { lat: coords.latitude, lng: coords.longitude } : {}),
         author_name: displayName || null,
       })
       .select('id')

@@ -4,6 +4,8 @@
  * Results must be credited: "© OpenStreetMap contributors".
  */
 
+import type { Coords } from './location';
+
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 
 const PLACE_TAGS = [
@@ -20,8 +22,6 @@ const PLACE_TAGS = [
 /** Half-size of the search box around the visitor, in degrees latitude (~30 km). */
 const BOX_DEGREES = 0.27;
 
-export type Coords = { latitude: number; longitude: number };
-
 export type PlaceResult = {
   /** OpenStreetMap id, e.g. "N2501812416" — stable, used to spot duplicates. */
   osmId: string;
@@ -29,9 +29,12 @@ export type PlaceResult = {
   street: string;
   city: string;
   region: string;
+  latitude: number;
+  longitude: number;
 };
 
 type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] }; // [longitude, latitude]
   properties: {
     name?: string;
     housenumber?: string;
@@ -75,8 +78,9 @@ async function fetchPlaces(url: string, signal?: AbortSignal): Promise<PlaceResu
   if (!res.ok) throw new Error(`Search service returned ${res.status}`);
   const data = (await res.json()) as { features?: PhotonFeature[] };
   const results: PlaceResult[] = [];
-  for (const { properties: p } of data.features ?? []) {
-    if (!p.name || !p.osm_type || p.osm_id == null) continue;
+  for (const { properties: p, geometry } of data.features ?? []) {
+    const [longitude, latitude] = geometry?.coordinates ?? [];
+    if (!p.name || !p.osm_type || p.osm_id == null || latitude == null || longitude == null) continue;
     const osmId = `${p.osm_type}${p.osm_id}`;
     if (results.some((r) => r.osmId === osmId)) continue;
     results.push({
@@ -85,6 +89,8 @@ async function fetchPlaces(url: string, signal?: AbortSignal): Promise<PlaceResu
       street: [p.housenumber, p.street].filter(Boolean).join(' '),
       city: p.city ?? p.district ?? p.county ?? '',
       region: p.state ?? '',
+      latitude,
+      longitude,
     });
   }
   return results;
@@ -103,4 +109,27 @@ export async function searchPlaces(query: string, coords: Coords | null, signal?
     if (nearby.length) return nearby;
   }
   return fetchPlaces(buildUrl(q, coords, false), signal);
+}
+
+/**
+ * Coordinates for a typed-in street address (for restaurants not picked from search),
+ * or null if it can't be found. Searches any address, not just restaurants.
+ */
+export async function geocodeAddress(street: string, city: string, near: Coords | null): Promise<Coords | null> {
+  const q = [street, city].map((s) => s.trim()).filter(Boolean).join(', ');
+  if (q.length < 5) return null;
+  const params = new URLSearchParams({ q, limit: '1' });
+  if (near) {
+    params.set('lat', near.latitude.toFixed(4));
+    params.set('lon', near.longitude.toFixed(4));
+  }
+  try {
+    const res = await fetch(`${PHOTON_URL}?${params}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: PhotonFeature[] };
+    const [longitude, latitude] = data.features?.[0]?.geometry?.coordinates ?? [];
+    return latitude == null || longitude == null ? null : { latitude, longitude };
+  } catch {
+    return null; // coordinates are optional; never block saving
+  }
 }
