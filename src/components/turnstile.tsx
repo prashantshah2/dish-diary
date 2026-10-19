@@ -25,7 +25,8 @@ export function Turnstile({ siteKey, onToken, onError }: TurnstileProps) {
     turnstile.render('#w', {
       sitekey: ${JSON.stringify(siteKey)},
       callback: function (t) { send('token', t); },
-      'error-callback': function () { send('error', 'CAPTCHA check failed. Please try again.'); },
+      retry: 'never',
+      'error-callback': function (code) { send('error', 'CAPTCHA check failed (error ' + code + ').'); return true; },
       'expired-callback': function () { send('error', 'CAPTCHA expired. Please complete it again.'); }
     });
   }
@@ -34,6 +35,10 @@ export function Turnstile({ siteKey, onToken, onError }: TurnstileProps) {
   return (
     <WebView
       source={{ html, baseUrl: `https://${host}` }}
+      // Turnstile runs its check in about:blank / about:srcdoc iframes. iOS applies this
+      // list to every frame, and the default (http/https only) blocks those, which
+      // leaves the widget stuck on "Verifying…".
+      originWhitelist={['https://*', 'about:blank', 'about:srcdoc']}
       style={{ height: 70, width: 310, backgroundColor: 'transparent' }}
       scrollEnabled={false}
       onMessage={(event) => {
