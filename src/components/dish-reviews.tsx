@@ -7,14 +7,26 @@ import { friendlyError, supabase } from '@/lib/supabase';
 import type { DishSummary, Review } from '@/lib/types';
 import { space } from '@/lib/theme';
 
+import { AdminBar, DishRenameForm, HiddenBadge } from './admin-tools';
 import { LikeCounts, Stars, VerdictBadge } from './rating';
 import { ReportButton } from './report-button';
 import { ReviewForm } from './review-form';
 import { AppText, Button, Card, Loading, Notice, Row } from './ui';
 
 /** Everything about one dish: summary, the visitor's own review, and everyone else's. */
-export function DishReviews({ dishId, onChanged }: { dishId: string; onChanged?: () => void }) {
+export function DishReviews({
+  dishId,
+  onChanged,
+  onDeleted,
+}: {
+  dishId: string;
+  onChanged?: () => void;
+  /** Called after an admin deletes this dish. */
+  onDeleted?: () => void;
+}) {
   const { userId } = useAuth();
+  const [renaming, setRenaming] = useState(false);
+  const [adminEditing, setAdminEditing] = useState<string | null>(null);
   const [dish, setDish] = useState<DishSummary | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +54,8 @@ export function DishReviews({ dishId, onChanged }: { dishId: string; onChanged?:
 
   const afterChange = () => {
     setEditing(false);
+    setRenaming(false);
+    setAdminEditing(null);
     setVersion((v) => v + 1);
     onChanged?.();
   };
@@ -63,6 +77,7 @@ export function DishReviews({ dishId, onChanged }: { dishId: string; onChanged?:
     <View style={{ gap: space.lg }}>
       <View style={{ gap: space.xs }}>
         <AppText variant="title">{dish.name}</AppText>
+        <HiddenBadge hidden={dish.is_hidden} />
         <Row wrap>
           <VerdictBadge dish={dish} />
           <LikeCounts likes={dish.likes} dislikes={dish.dislikes} />
@@ -77,6 +92,22 @@ export function DishReviews({ dishId, onChanged }: { dishId: string; onChanged?:
           <AppText variant="small">Added by {dish.author_name || 'Anonymous'}</AppText>
           <ReportButton type="dish" id={dish.id} />
         </Row>
+        {renaming ? (
+          <DishRenameForm dishId={dish.id} name={dish.name} onDone={(saved) => (saved ? afterChange() : setRenaming(false))} />
+        ) : (
+          <AdminBar
+            type="dish"
+            id={dish.id}
+            hidden={dish.is_hidden}
+            onChanged={afterChange}
+            onEdit={() => setRenaming(true)}
+            onDeleted={() => {
+              onChanged?.();
+              onDeleted?.();
+            }}
+            deleteWarning={`Its ${dish.review_count} review${dish.review_count === 1 ? '' : 's'} will be deleted too.`}
+          />
+        )}
       </View>
 
       <Notice message={error} />
@@ -103,12 +134,18 @@ export function DishReviews({ dishId, onChanged }: { dishId: string; onChanged?:
       <AppText variant="heading">
         {others.length ? `What others said (${others.length})` : 'No other reviews yet'}
       </AppText>
-      {others.map((r) => (
-        <Card key={r.id}>
-          <ReviewBody review={r} />
-          <ReportButton type="review" id={r.id} />
-        </Card>
-      ))}
+      {others.map((r) =>
+        adminEditing === r.id ? (
+          <ReviewForm key={r.id} dishId={dish.id} existing={r} asAdmin onSaved={afterChange} onCancel={() => setAdminEditing(null)} />
+        ) : (
+          <Card key={r.id}>
+            <HiddenBadge hidden={r.is_hidden} />
+            <ReviewBody review={r} />
+            <ReportButton type="review" id={r.id} />
+            <AdminBar type="review" id={r.id} hidden={r.is_hidden} onChanged={afterChange} onEdit={() => setAdminEditing(r.id)} />
+          </Card>
+        )
+      )}
     </View>
   );
 }

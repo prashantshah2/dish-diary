@@ -10,6 +10,7 @@ export type RestaurantSummary = {
   created_at: string;
   dish_count: number;
   review_count: number;
+  is_hidden: boolean;
 };
 
 export type DishSummary = {
@@ -22,6 +23,7 @@ export type DishSummary = {
   likes: number;
   dislikes: number;
   avg_rating: number | null;
+  is_hidden: boolean;
 };
 
 export type Review = {
@@ -33,6 +35,7 @@ export type Review = {
   rating: number | null;
   note: string | null;
   visited_on: string | null;
+  is_hidden: boolean;
   created_at: string;
   updated_at: string;
 };

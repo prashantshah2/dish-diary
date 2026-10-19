@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/lib/auth';
 import { radius, space, useBreakpoint, useColors } from '@/lib/theme';
 
 const NAV: { href: Href; label: string; icon: string; match: (p: string) => boolean }[] = [
@@ -16,6 +17,8 @@ const NAV: { href: Href; label: string; icon: string; match: (p: string) => bool
   { href: '/about', label: 'About', icon: 'ℹ️', match: (p) => p === '/about' },
 ];
 
+const ADMIN_NAV = { href: '/admin' as Href, label: 'Admin', icon: '🛠️', match: (p: string) => p === '/admin' };
+
 /**
  * Responsive frame around every screen:
  *   phone        → content + bottom navigation bar
@@ -26,6 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isPhone, bp } = useBreakpoint();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { isAdmin } = useAuth();
+  const nav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   if (isPhone) {
     return (
@@ -40,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             backgroundColor: c.surface,
             paddingBottom: insets.bottom,
           }}>
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = item.match(pathname);
             return (
               <Pressable
@@ -77,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Text style={{ fontSize: 20, fontWeight: '800', color: c.primary, paddingHorizontal: space.md, marginBottom: space.lg }}>
           Dish Diary
         </Text>
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active = item.match(pathname);
           return (
             <Pressable

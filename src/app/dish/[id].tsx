@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { DishReviews } from '@/components/dish-reviews';
 import { Screen } from '@/components/ui';
@@ -8,7 +8,7 @@ export default function DishScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   return (
     <Screen>
-      <DishReviews key={id} dishId={id} />
+      <DishReviews key={id} dishId={id} onDeleted={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
     </Screen>
   );
 }

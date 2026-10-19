@@ -14,11 +14,14 @@ export function ReviewForm({
   existing,
   onSaved,
   onCancel,
+  asAdmin,
 }: {
   dishId: string;
   existing?: Review;
   onSaved: () => void;
   onCancel?: () => void;
+  /** Admin editing someone else's review: keep their name on it. */
+  asAdmin?: boolean;
 }) {
   const { displayName } = useAuth();
   const [liked, setLiked] = useState<boolean | null>(existing?.liked ?? null);
@@ -37,7 +40,7 @@ export function ReviewForm({
       rating,
       note: note.trim() || null,
       visited_on: visitedOn,
-      author_name: displayName || null,
+      ...(asAdmin ? {} : { author_name: displayName || null }),
     };
     const { error: err } = existing
       ? await supabase.from('reviews').update(fields).eq('id', existing.id)
@@ -50,7 +53,9 @@ export function ReviewForm({
   return (
     <ContributorGate>
       <Card>
-        <AppText variant="heading">{existing ? 'Edit your review' : 'Add your review'}</AppText>
+        <AppText variant="heading">
+          {asAdmin ? `Edit ${existing?.author_name || 'Anonymous'}’s review` : existing ? 'Edit your review' : 'Add your review'}
+        </AppText>
         <LikeToggle value={liked} onChange={setLiked} />
         <AppText variant="label">Rating (optional)</AppText>
         <StarPicker value={rating} onChange={setRating} />
@@ -63,7 +68,7 @@ export function ReviewForm({
           maxLength={1000}
         />
         <DateField label="Date visited (optional)" value={visitedOn} onChange={setVisitedOn} />
-        <NameField />
+        {!asAdmin && <NameField />}
         <Notice message={error} />
         <Row>
           <Button title={existing ? 'Save changes' : 'Post review'} onPress={save} loading={busy} />

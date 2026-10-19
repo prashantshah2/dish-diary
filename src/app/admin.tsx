@@ -1,0 +1,286 @@
+import { Link, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
+
+import { AdminBar } from '@/components/admin-tools';
+import { Turnstile } from '@/components/turnstile';
+import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
+import { useAuth } from '@/lib/auth';
+import { exportAllToExcel } from '@/lib/export';
+import { friendlyError, supabase } from '@/lib/supabase';
+import type { ReportTarget } from '@/lib/types';
+import { space, useColors } from '@/lib/theme';
+
+export default function AdminScreen() {
+  const { session, loading, isAdmin, signOut } = useAuth();
+
+  if (loading) return <Screen><Loading /></Screen>;
+
+  // Signed in with an email account that isn't on the admin list.
+  if (session && !session.user.is_anonymous && !isAdmin) {
+    return (
+      <Screen>
+        <AppText variant="title">Admin</AppText>
+        <Notice message={`${session.user.email ?? 'This account'} isn’t an admin (or admin status is still loading).`} />
+        <Row>
+          <Button title="Sign out" variant="secondary" onPress={signOut} />
+        </Row>
+      </Screen>
+    );
+  }
+
+  if (!isAdmin) return <AdminSignIn />;
+
+  return (
+    <Screen>
+      <Row style={{ justifyContent: 'space-between' }} wrap>
+        <AppText variant="title">Admin</AppText>
+        <Button title="Sign out" variant="secondary" compact onPress={signOut} />
+      </Row>
+      <AppText variant="muted">
+        Signed in as {session?.user.email}. While signed in you’ll see Edit, Hide and Delete on every restaurant, dish
+        and review, including hidden ones.
+      </AppText>
+      <ExportCard />
+      <ReportsList />
+    </Screen>
+  );
+}
+
+/** If an emailed link failed (expired, already used), Supabase sends us back with the reason in the URL. */
+function linkErrorFromUrl(): string | null {
+  if (Platform.OS !== 'web') return null;
+  const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search.slice(1));
+  const description = params.get('error_description');
+  return description ? `That sign-in link didn’t work: ${description.replace(/\+/g, ' ')}. Request a new one.` : null;
+}
+
+function AdminSignIn() {
+  const { sendSignInLink } = useAuth();
+  const [email, setEmail] = useState('');
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [linkSent, setLinkSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(linkErrorFromUrl);
+  const siteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY;
+
+  const send = async () => {
+    if (!email.includes('@')) return setError('Enter your email address.');
+    if (!captcha) return setError('Complete the check above first.');
+    setBusy(true);
+    setError(null);
+    const err = await sendSignInLink(email, captcha);
+    setBusy(false);
+    // CAPTCHA tokens are single-use: get a fresh one whatever happened.
+    setCaptcha(null);
+    setCaptchaKey((k) => k + 1);
+    if (err) setError(err);
+    else setLinkSent(true);
+  };
+
+  return (
+    <Screen>
+      <View style={{ maxWidth: 480, width: '100%', gap: space.lg }}>
+        <AppText variant="title">Admin sign-in</AppText>
+        <Card style={{ gap: space.md }}>
+          {!linkSent ? (
+            <>
+              <Field
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                autoComplete="email"
+                inputMode="email"
+              />
+              {siteKey ? (
+                <Turnstile key={captchaKey} siteKey={siteKey} onToken={setCaptcha} onError={setError} />
+              ) : (
+                <Notice message="CAPTCHA isn't configured: set EXPO_PUBLIC_TURNSTILE_SITE_KEY in .env." />
+              )}
+              <Button title="Email me a sign-in link" onPress={send} loading={busy} disabled={!captcha} />
+              <AppText variant="small">Only accounts set up as admin can sign in.</AppText>
+            </>
+          ) : (
+            <>
+              <AppText variant="heading">Check your email</AppText>
+              <AppText>
+                We sent a sign-in link to {email}. Open it on this device — whichever browser opens the link is the one
+                that gets signed in. It can take a minute; check spam too.
+              </AppText>
+              <AppText
+                variant="small"
+                accessibilityRole="button"
+                onPress={() => {
+                  setLinkSent(false);
+                  setError(null);
+                }}
+                style={{ textDecorationLine: 'underline' }}>
+                Use a different email or send again
+              </AppText>
+            </>
+          )}
+          <Notice message={error} />
+        </Card>
+      </View>
+    </Screen>
+  );
+}
+
+function ExportCard() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const { fileName, counts } = await exportAllToExcel();
+      setMessage(
+        `Downloaded ${fileName}: ` +
+          Object.entries(counts)
+            .map(([sheet, n]) => `${n} ${sheet.toLowerCase()}`)
+            .join(', ')
+      );
+    } catch (e) {
+      setError(`Export failed: ${(e as Error).message}`);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Card>
+      <AppText variant="heading">Export to Excel</AppText>
+      <AppText variant="muted">
+        One .xlsx file with a sheet each for restaurants, dishes, reviews and reports, hidden entries included.
+      </AppText>
+      {Platform.OS === 'web' ? (
+        <Row>
+          <Button title="Download Excel file" onPress={run} loading={busy} />
+        </Row>
+      ) : (
+        <AppText variant="small">Open the website to export; downloads aren’t supported in the app.</AppText>
+      )}
+      <Notice message={message} tone="info" />
+      <Notice message={error} />
+    </Card>
+  );
+}
+
+type ReportGroup = {
+  type: ReportTarget;
+  id: string;
+  reasons: { reason: string | null; created_at: string; reportId: string }[];
+  label: string;
+  href: Href | null;
+  hidden: boolean;
+};
+
+function ReportsList() {
+  const c = useColors();
+  const [groups, setGroups] = useState<ReportGroup[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  const reload = () => setVersion((v) => v + 1);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: reports, error: err } = await supabase
+        .from('reports')
+        .select('id, target_type, target_id, reason, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (err) {
+        if (active) setError(friendlyError(err));
+        return;
+      }
+      const ids = (t: ReportTarget) => [...new Set(reports.filter((r) => r.target_type === t).map((r) => r.target_id))];
+      const [rs, ds, vs] = await Promise.all([
+        supabase.from('restaurants').select('id, name, is_hidden').in('id', ids('restaurant')),
+        supabase.from('dishes').select('id, name, is_hidden').in('id', ids('dish')),
+        supabase.from('reviews').select('id, dish_id, author_name, note, is_hidden').in('id', ids('review')),
+      ]);
+
+      const byKey = new Map<string, ReportGroup>();
+      for (const r of reports) {
+        const key = `${r.target_type}:${r.target_id}`;
+        let g = byKey.get(key);
+        if (!g) {
+          const type = r.target_type as ReportTarget;
+          g = { type, id: r.target_id, reasons: [], label: 'Already deleted', href: null, hidden: false };
+          if (type === 'restaurant') {
+            const t = rs.data?.find((x) => x.id === r.target_id);
+            if (t) Object.assign(g, { label: t.name, hidden: t.is_hidden, href: { pathname: '/restaurant/[id]', params: { id: t.id } } });
+          } else if (type === 'dish') {
+            const t = ds.data?.find((x) => x.id === r.target_id);
+            if (t) Object.assign(g, { label: t.name, hidden: t.is_hidden, href: { pathname: '/dish/[id]', params: { id: t.id } } });
+          } else {
+            const t = vs.data?.find((x) => x.id === r.target_id);
+            if (t)
+              Object.assign(g, {
+                label: `${t.author_name || 'Anonymous'}: “${(t.note ?? '').slice(0, 80) || 'no note'}”`,
+                hidden: t.is_hidden,
+                href: { pathname: '/dish/[id]', params: { id: t.dish_id } },
+              });
+          }
+          byKey.set(key, g);
+        }
+        g.reasons.push({ reason: r.reason, created_at: r.created_at, reportId: r.id });
+      }
+      if (active) {
+        setGroups([...byKey.values()]);
+        setError(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [version]);
+
+  const dismiss = async (g: ReportGroup) => {
+    const { error: err } = await supabase.from('reports').delete().in('id', g.reasons.map((r) => r.reportId));
+    if (err) setError(friendlyError(err));
+    else reload();
+  };
+
+  return (
+    <View style={{ gap: space.md }}>
+      <AppText variant="heading">Reports</AppText>
+      <Notice message={error} />
+      {groups === null ? (
+        <Loading />
+      ) : groups.length === 0 ? (
+        <EmptyState title="Nothing reported" body="When people use “Report”, it shows up here." />
+      ) : (
+        groups.map((g) => (
+          <Card key={`${g.type}:${g.id}`}>
+            <AppText variant="small" style={{ color: c.primary, fontWeight: '700' }}>
+              {g.type.toUpperCase()} · reported {g.reasons.length}× {g.hidden ? '· hidden' : ''}
+            </AppText>
+            {g.href ? (
+              <Link href={g.href}>
+                <AppText variant="label" style={{ textDecorationLine: 'underline' }}>{g.label}</AppText>
+              </Link>
+            ) : (
+              <AppText variant="label">{g.label}</AppText>
+            )}
+            {g.reasons.map((r) => (
+              <AppText key={r.reportId} variant="small">
+                {new Date(r.created_at).toLocaleDateString()} — {r.reason || 'no reason given'}
+              </AppText>
+            ))}
+            {g.href && <AdminBar type={g.type} id={g.id} hidden={g.hidden} onChanged={reload} />}
+            <Row>
+              <Button title="Dismiss report" variant="ghost" compact onPress={() => dismiss(g)} />
+            </Row>
+          </Card>
+        ))
+      )}
+    </View>
+  );
+}

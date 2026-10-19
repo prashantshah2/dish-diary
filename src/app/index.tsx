@@ -2,6 +2,7 @@ import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable } from 'react-native';
 
+import { HiddenBadge } from '@/components/admin-tools';
 import { AppText, Button, Card, Chip, EmptyState, Field, Grid, Loading, Notice, Row, Screen } from '@/components/ui';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { CUISINES, cuisineLabel, type RestaurantSummary } from '@/lib/types';
@@ -90,6 +91,7 @@ function RestaurantCard({ r }: { r: RestaurantSummary }) {
           <AppText variant="heading" numberOfLines={2}>
             {r.name}
           </AppText>
+          <HiddenBadge hidden={r.is_hidden} />
           <AppText variant="muted" numberOfLines={1}>
             {[r.cuisine && cuisineLabel(r.cuisine), r.price_level ? '$'.repeat(r.price_level) : null, r.city].filter(Boolean).join(' · ') || ' '}
           </AppText>

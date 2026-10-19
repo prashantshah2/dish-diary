@@ -1,3 +1,5 @@
+import { Link } from 'expo-router';
+
 import { AppText, Card, Screen } from '@/components/ui';
 
 export default function AboutScreen() {
@@ -30,6 +32,9 @@ export default function AboutScreen() {
           that breaks these rules; posts reported by several people are hidden automatically and reviewed.
         </AppText>
       </Card>
+      <Link href="/admin">
+        <AppText variant="small" style={{ textDecorationLine: 'underline' }}>Admin sign-in</AppText>
+      </Link>
     </Screen>
   );
 }

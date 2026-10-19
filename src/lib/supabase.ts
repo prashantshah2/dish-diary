@@ -16,7 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     storage: localStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Web: pick up the login from an emailed sign-in link (admin). Apps don't open those links.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

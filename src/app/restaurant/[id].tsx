@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { AdminBar, HiddenBadge, RestaurantEditForm } from '@/components/admin-tools';
 import { ContributorGate } from '@/components/contributor-gate';
 import { DishReviews } from '@/components/dish-reviews';
 import { LikeCounts, Stars, VerdictBadge } from '@/components/rating';
@@ -29,6 +30,7 @@ export default function RestaurantScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  const [editingRestaurant, setEditingRestaurant] = useState(false);
   const reload = () => setVersion((v) => v + 1);
 
   useEffect(() => {
@@ -65,9 +67,18 @@ export default function RestaurantScreen() {
     else router.push({ pathname: '/dish/[id]', params: { id: dishId } });
   };
 
-  const header = (
+  const header = editingRestaurant ? (
+    <RestaurantEditForm
+      restaurant={restaurant}
+      onDone={(saved) => {
+        setEditingRestaurant(false);
+        if (saved) reload();
+      }}
+    />
+  ) : (
     <View style={{ gap: space.xs }}>
       <AppText variant="title">{restaurant.name}</AppText>
+      <HiddenBadge hidden={restaurant.is_hidden} />
       <AppText variant="muted">
         {[restaurant.cuisine, restaurant.price_level ? '$'.repeat(restaurant.price_level) : null].filter(Boolean).join(' · ')}
       </AppText>
@@ -78,6 +89,15 @@ export default function RestaurantScreen() {
         <AppText variant="small">Added by {restaurant.author_name || 'Anonymous'}</AppText>
         <ReportButton type="restaurant" id={restaurant.id} />
       </Row>
+      <AdminBar
+        type="restaurant"
+        id={restaurant.id}
+        hidden={restaurant.is_hidden}
+        onChanged={reload}
+        onEdit={() => setEditingRestaurant(true)}
+        onDeleted={() => router.replace('/')}
+        deleteWarning={`All ${restaurant.dish_count} of its dishes and their reviews will be deleted too.`}
+      />
     </View>
   );
 
@@ -118,7 +138,12 @@ export default function RestaurantScreen() {
           </ScrollView>
           <ScrollView style={{ flex: 3 }} contentContainerStyle={{ padding: space.xl }}>
             {activeDish ? (
-              <DishReviews key={activeDish} dishId={activeDish} onChanged={reload} />
+              <DishReviews
+                key={activeDish}
+                dishId={activeDish}
+                onChanged={reload}
+                onDeleted={() => setSelected(null)}
+              />
             ) : (
               <EmptyState title="Pick a dish" body="Select a dish on the left to see what people thought." />
             )}
@@ -145,6 +170,7 @@ function DishRow({ dish, active, onPress }: { dish: DishSummary; active: boolean
           </AppText>
           <VerdictBadge dish={dish} />
         </Row>
+        <HiddenBadge hidden={dish.is_hidden} />
         <Row wrap>
           <LikeCounts likes={dish.likes} dislikes={dish.dislikes} />
           <Stars value={dish.avg_rating} size={13} />

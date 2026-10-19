@@ -33,6 +33,7 @@ export default function RootLayout() {
               <Stack.Screen name="restaurant/[id]" options={{ title: 'Restaurant' }} />
               <Stack.Screen name="dish/[id]" options={{ title: 'Dish' }} />
               <Stack.Screen name="about" options={{ title: 'About' }} />
+              <Stack.Screen name="admin" options={{ title: 'Admin' }} />
             </Stack>
           </AppShell>
         </ThemeProvider>

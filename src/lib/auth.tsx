@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 import { friendlyError, supabase } from './supabase';
 
@@ -15,6 +16,11 @@ type AuthState = {
   setDisplayName: (name: string) => void;
   /** Creates a hidden anonymous account, protected by the CAPTCHA token. */
   startContributing: (captchaToken: string) => Promise<string | null>;
+  /** Signed in with an email account that's listed in public.admins. */
+  isAdmin: boolean;
+  /** Emails a one-time sign-in link to an existing (admin) account. */
+  sendSignInLink: (email: string, captchaToken: string) => Promise<string | null>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -41,6 +47,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Anonymous visitors are never admins; for email accounts, ask the database.
+  const [adminFor, setAdminFor] = useState<string | null>(null);
+  const emailUserId = session && !session.user.is_anonymous ? session.user.id : null;
+  useEffect(() => {
+    if (!emailUserId) return;
+    let active = true;
+    supabase.rpc('is_admin').then(({ data }) => {
+      if (active) setAdminFor(data === true ? emailUserId : null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [emailUserId]);
+  const isAdmin = !!emailUserId && adminFor === emailUserId;
+
   const setDisplayName = (name: string) => {
     const trimmed = name.trim().slice(0, 40);
     setName(trimmed);
@@ -56,6 +77,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? friendlyError(error) : null;
   };
 
+  const sendSignInLink = async (email: string, captchaToken: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        // Only existing accounts (created in the dashboard) can sign in — no self sign-up.
+        shouldCreateUser: false,
+        captchaToken,
+        // Come back to the admin page on this site. Must be listed under Redirect URLs in
+        // Supabase; in the app, Supabase falls back to its Site URL (the website).
+        emailRedirectTo: Platform.OS === 'web' ? `${window.location.origin}/admin` : undefined,
+      },
+    });
+    return error ? friendlyError(error) : null;
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -65,6 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName,
         setDisplayName,
         startContributing,
+        isAdmin,
+        sendSignInLink,
+        signOut,
       }}>
       {children}
     </AuthContext.Provider>

@@ -77,6 +77,24 @@ npx expo run:ios --device --configuration Release
 
 Free Apple IDs: the app expires after 7 days; re-run to reinstall.
 
+## Admin mode
+
+Admins sign in at `/admin` (link at the bottom of About) with an emailed sign-in link, then see
+Edit / Hide / Delete on every restaurant, dish and review (hidden ones too, with a badge), a
+Reports list, and **Download Excel file** (one workbook: Restaurants, Dishes, Reviews, Reports;
+web only). Code: `src/app/admin.tsx`, `src/components/admin-tools.tsx`, `src/lib/export.ts`.
+
+Setup (once):
+1. Run `supabase/migrations/003_admin.sql` in the SQL Editor.
+2. Authentication → **URL Configuration**: Site URL = the Vercel address; add
+   `https://<your-site>/**` and `http://localhost:8081/**` under Redirect URLs.
+   (Supabase's default email template is used as-is — free projects can't edit it.)
+3. Authentication → Users → **Add user → Create new user** with your email (auto-confirm on).
+   Supabase's built-in email only delivers to your project team's addresses and a few per hour.
+4. SQL Editor: `insert into public.admins (user_id) select id from auth.users where email = 'you@example.com';`
+
+Only accounts in `public.admins` get admin rights; the sign-in never creates accounts.
+
 ## Moderation
 
 - Reports: Supabase → Table Editor → `reports`.
