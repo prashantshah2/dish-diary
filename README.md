@@ -77,6 +77,14 @@ npx expo run:ios --device --configuration Release
 
 Free Apple IDs: the app expires after 7 days; re-run to reinstall.
 
+## Near me
+
+"📍 Near me" on the main page lists reviewed restaurants within 2/5/10/25 miles of the visitor,
+nearest first (straight-line distance). Restaurants store `lat`/`lng` (migration
+`004_location.sql`): from the map-search pick, or by looking up the typed address when saving;
+admin address edits re-locate. Restaurants without coordinates don't appear in Near me — fix one
+by editing its address as admin. Code: `src/lib/location.ts`, `src/app/index.tsx`.
+
 ## User accounts (optional for visitors)
 
 Anyone can still post without signing up (anonymous account after a CAPTCHA). Visitors can also
