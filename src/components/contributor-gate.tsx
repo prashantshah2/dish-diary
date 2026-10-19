@@ -1,6 +1,9 @@
+import { Link } from 'expo-router';
 import { useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { space, useColors } from '@/lib/theme';
 
 import { Turnstile } from './turnstile';
 import { AppText, Button, Card, Field, Loading, Notice } from './ui';
@@ -29,6 +32,11 @@ export function ContributorGate({ children }: { children: ReactNode }) {
       <AppText variant="muted">
         No sign-up needed. This keeps spam bots out; you’ll only see it once on this device.
       </AppText>
+      <Link href="/account">
+        <AppText variant="small" style={{ textDecorationLine: 'underline' }}>
+          Or sign in / create an account to post under your name on any device
+        </AppText>
+      </Link>
       {/* Tokens are single-use: after any failure, hide the widget until "Try again"
           mounts a fresh one, instead of silently starting another check. */}
       {!error && (
@@ -60,9 +68,26 @@ export function ContributorGate({ children }: { children: ReactNode }) {
   );
 }
 
-/** "Your name" input, remembered on this device and attached to new posts. */
+/**
+ * Signed-in account: "Posting as <name>" from the account (change it on the Account page).
+ * Visitor: "Your name" input, remembered on this device and attached to new posts.
+ */
 export function NameField() {
-  const { displayName, setDisplayName } = useAuth();
+  const { displayName, setDisplayName, account } = useAuth();
+  const c = useColors();
+  if (account) {
+    return (
+      <View style={{ gap: space.xs }}>
+        <AppText variant="label">Your name</AppText>
+        <AppText>
+          Posting as <AppText style={{ fontWeight: '700' }}>{account.name || 'Anonymous'}</AppText>{' '}
+          <Link href="/account">
+            <AppText variant="small" style={{ color: c.primary, textDecorationLine: 'underline' }}>Change</AppText>
+          </Link>
+        </AppText>
+      </View>
+    );
+  }
   return (
     <Field
       label="Your name (optional)"

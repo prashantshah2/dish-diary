@@ -29,8 +29,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isPhone, bp } = useBreakpoint();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const { isAdmin } = useAuth();
-  const nav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const { isAdmin, account } = useAuth();
+  const accountNav = {
+    href: '/account' as Href,
+    label: account ? 'Account' : 'Sign in',
+    icon: '👤',
+    match: (p: string) => p === '/account',
+  };
+  const nav = [...NAV, accountNav, ...(isAdmin ? [ADMIN_NAV] : [])];
 
   if (isPhone) {
     return (

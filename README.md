@@ -77,6 +77,18 @@ npx expo run:ios --device --configuration Release
 
 Free Apple IDs: the app expires after 7 days; re-run to reinstall.
 
+## User accounts (optional for visitors)
+
+Anyone can still post without signing up (anonymous account after a CAPTCHA). Visitors can also
+create an email + password account at `/account` (CAPTCHA protected): their account name fills
+"Your name" on every form, and they can edit or delete their reviews from any device. The name
+is stored on the account (`user_metadata.display_name`) — no database table.
+
+Supabase setting: Authentication → Sign In / Providers → Email → **Confirm email off** (the
+built-in email can't reach regular users). Consequences: emails aren't verified, and there are no
+password-reset emails — reset a password from Authentication → Users, or add custom SMTP later.
+Code: `src/app/account.tsx`, `src/lib/auth.tsx`.
+
 ## Admin mode
 
 Admins sign in at `/admin` (link at the bottom of About) with an emailed sign-in link, then see

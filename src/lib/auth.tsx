@@ -18,6 +18,11 @@ type AuthState = {
   startContributing: (captchaToken: string) => Promise<string | null>;
   /** Signed in with an email account that's listed in public.admins. */
   isAdmin: boolean;
+  /** Signed in with an email + password account (not an anonymous visitor). */
+  account: { email: string; name: string } | null;
+  signUp: (name: string, email: string, password: string, captchaToken: string) => Promise<string | null>;
+  signIn: (email: string, password: string, captchaToken: string) => Promise<string | null>;
+  updateAccountName: (name: string) => Promise<string | null>;
   /** Emails a one-time sign-in link to an existing (admin) account. */
   sendSignInLink: (email: string, captchaToken: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -62,6 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [emailUserId]);
   const isAdmin = !!emailUserId && adminFor === emailUserId;
 
+  const account =
+    session && !session.user.is_anonymous
+      ? {
+          email: session.user.email ?? '',
+          name: String(session.user.user_metadata?.display_name ?? '').trim(),
+        }
+      : null;
+
   const setDisplayName = (name: string) => {
     const trimmed = name.trim().slice(0, 40);
     setName(trimmed);
@@ -70,6 +83,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Storage unavailable (e.g. private browsing) — keep it for this visit only.
     }
+  };
+
+  const signUp = async (name: string, email: string, password: string, captchaToken: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { captchaToken, data: { display_name: name.trim().slice(0, 40) } },
+    });
+    if (error) return friendlyError(error);
+    // With "Confirm email" on, Supabase returns no session until the email link is clicked.
+    if (!data.session) return 'Account created, but email confirmation is turned on in Supabase, so you can’t sign in yet.';
+    return null;
+  };
+
+  const signIn = async (email: string, password: string, captchaToken: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password, options: { captchaToken } });
+    return error ? friendlyError(error) : null;
+  };
+
+  const updateAccountName = async (name: string) => {
+    const { error } = await supabase.auth.updateUser({ data: { display_name: name.trim().slice(0, 40) } });
+    return error ? friendlyError(error) : null;
   };
 
   const startContributing = async (captchaToken: string) => {
@@ -102,10 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         userId: session?.user.id ?? null,
-        displayName,
+        // Account holders post under their account name; visitors under the name they typed.
+        displayName: account ? account.name : displayName,
         setDisplayName,
         startContributing,
         isAdmin,
+        account,
+        signUp,
+        signIn,
+        updateAccountName,
         sendSignInLink,
         signOut,
       }}>
