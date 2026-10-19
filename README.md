@@ -5,6 +5,41 @@ One Expo codebase runs as a website (Vercel) and as an iPhone app.
 
 **Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres + RLS, Auth, Storage) · Cloudflare Turnstile (CAPTCHA) · Photon / OpenStreetMap (place search) · Vercel (web hosting)
 
+## Screenshots
+
+One codebase adapts to every screen: sidebar and multi-column layouts on desktop, bottom tabs and a single
+column on phones. (Screenshots use fictional demo data — see `supabase/demo/`.)
+
+<table>
+  <tr>
+    <td width="68%"><img src="doc/screenshots/home-desktop.png" alt="Restaurant list on desktop: sidebar, cuisine filters, restaurant cards"></td>
+    <td width="32%"><img src="doc/screenshots/home-phone.png" alt="Restaurant list on a phone with bottom tabs"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Restaurants</b> — search, cuisine filters, cards with dish and review counts</td>
+    <td align="center"><b>Same page on a phone</b></td>
+  </tr>
+  <tr>
+    <td><img src="doc/screenshots/restaurant-desktop.png" alt="Restaurant page on desktop: dishes grouped by Must try, Mixed, Skip, with reviews beside them"></td>
+    <td><img src="doc/screenshots/restaurant-phone.png" alt="Restaurant page on a phone"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Restaurant page</b> — dishes grouped into Must try / Mixed / Skip, reviews alongside</td>
+    <td align="center"><b>Restaurant page on a phone</b></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="doc/screenshots/near-me-phone.png" alt="Near me: reviewed restaurants nearest first with distances"></td>
+    <td width="50%"><img src="doc/screenshots/dish-phone.png" alt="Dish page: likes, star ratings, notes and a photo"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>📍 Near me</b> — reviewed places within 2–25 miles, nearest first</td>
+    <td align="center"><b>Dish reviews</b> — 👍/👎, stars, notes, visit dates and photos</td>
+  </tr>
+</table>
+
 ## Architecture
 
 ![Dish Diary architecture](doc/architecture.png)

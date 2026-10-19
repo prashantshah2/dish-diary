@@ -6,6 +6,7 @@ import { AdminBar } from '@/components/admin-tools';
 import { Turnstile } from '@/components/turnstile';
 import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { countDemoRestaurants, removeDemoData } from '@/lib/demo';
 import { exportAllToExcel } from '@/lib/export';
 import { friendlyError, supabase } from '@/lib/supabase';
 import type { ReportTarget } from '@/lib/types';
@@ -43,6 +44,7 @@ export default function AdminScreen() {
       </AppText>
       <PhotoStorageCard />
       <ExportCard />
+      <DemoDataCard />
       <ReportsList />
     </Screen>
   );
@@ -127,6 +129,62 @@ function AdminSignIn() {
         </Card>
       </View>
     </Screen>
+  );
+}
+
+/** Shown only while the README screenshot demo data (supabase/demo/demo-setup.sql) is loaded. */
+function DemoDataCard() {
+  const [count, setCount] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    countDemoRestaurants().then((n) => active && setCount(n));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!count && !message) return null;
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await removeDemoData();
+    setBusy(false);
+    setConfirming(false);
+    if (err) return setError(err);
+    setCount(0);
+    setMessage('Demo data removed.');
+  };
+
+  return (
+    <Card>
+      <AppText variant="heading">Demo data</AppText>
+      {message ? (
+        <Notice message={message} tone="info" />
+      ) : (
+        <>
+          <AppText variant="muted">
+            {count} demo restaurant{count === 1 ? '' : 's'} (with their dishes, reviews and photos) loaded for screenshots.
+          </AppText>
+          {confirming ? (
+            <Row wrap>
+              <Button title="Yes, remove demo data" variant="danger" loading={busy} onPress={remove} compact />
+              <Button title="Cancel" variant="ghost" onPress={() => setConfirming(false)} compact />
+            </Row>
+          ) : (
+            <Row>
+              <Button title="Remove demo data" variant="danger" onPress={() => setConfirming(true)} compact />
+            </Row>
+          )}
+        </>
+      )}
+      <Notice message={error} />
+    </Card>
   );
 }
 
