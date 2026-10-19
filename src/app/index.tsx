@@ -1,6 +1,6 @@
 import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { HiddenBadge } from '@/components/admin-tools';
 import { AppText, Button, Card, Chip, EmptyState, Field, Grid, Loading, Notice, Row, Screen } from '@/components/ui';
@@ -85,14 +85,36 @@ export default function RestaurantsScreen() {
         <Button title="+ Add restaurant" onPress={() => router.push('/restaurant/new')} />
       </Row>
 
-      <Field
-        label="Search"
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Restaurant name or city"
-        autoCorrect={false}
-        returnKeyType="search"
-      />
+      {/* Two ways to find places, side by side: type a search, or use your location. */}
+      <Row style={{ alignItems: 'flex-end' }}>
+        <View style={{ flex: 1 }}>
+          <Field
+            label="Search"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Restaurant name or city"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+        </View>
+        <AppText variant="muted" style={{ paddingBottom: space.md - 2 }}>or</AppText>
+        <Button
+          title={locating ? 'Finding you…' : '📍 Near me'}
+          variant={here ? 'primary' : 'secondary'}
+          onPress={toggleNearMe}
+          loading={locating}
+        />
+      </Row>
+      {here && (
+        <View style={{ gap: space.xs }}>
+          <Row wrap style={{ gap: space.xs + 2 }}>
+            {RADII_MILES.map((mi) => (
+              <Chip key={mi} label={`Within ${mi} mi`} selected={radius === mi} onPress={() => setRadius(mi)} />
+            ))}
+          </Row>
+          <AppText variant="small">Reviewed restaurants within {radius} miles of you, nearest first. Tap 📍 Near me again to see all.</AppText>
+        </View>
+      )}
 
       {/* Wraps onto extra lines so every cuisine is visible without sideways scrolling. */}
       <Row wrap style={{ gap: space.xs + 2 }}>
@@ -101,17 +123,6 @@ export default function RestaurantsScreen() {
           <Chip key={name} label={cuisineLabel(name)} selected={cuisine === name} onPress={() => setCuisine(cuisine === name ? null : name)} />
         ))}
       </Row>
-
-      <Row wrap style={{ gap: space.xs + 2 }}>
-        <Chip label={locating ? '📍 Finding you…' : '📍 Near me'} selected={!!here} onPress={toggleNearMe} />
-        {here &&
-          RADII_MILES.map((mi) => (
-            <Chip key={mi} label={`${mi} mi`} selected={radius === mi} onPress={() => setRadius(mi)} />
-          ))}
-      </Row>
-      {here && (
-        <AppText variant="small">Reviewed restaurants within {radius} miles of you, nearest first.</AppText>
-      )}
 
       <Notice message={error} />
 
