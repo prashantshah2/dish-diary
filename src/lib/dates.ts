@@ -20,3 +20,15 @@ export function todayISO(): string {
 export function formatISODate(s: string): string {
   return fromISODate(s).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
+
+/** "YYYY-MM-DD" shifted by `days` (negative goes back). */
+export function addDaysISO(s: string, days: number): string {
+  const d = fromISODate(s);
+  d.setDate(d.getDate() + days);
+  return toISODate(d);
+}
+
+/** "Oct 18" — short label for chart axes. */
+export function shortISODate(s: string): string {
+  return fromISODate(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}

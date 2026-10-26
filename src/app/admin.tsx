@@ -1,4 +1,4 @@
-import { Link, type Href } from 'expo-router';
+import { Link, router, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 
@@ -42,6 +42,13 @@ export default function AdminScreen() {
         Signed in as {session?.user.email}. While signed in you’ll see Edit, Hide and Delete on every restaurant, dish
         and review, including hidden ones.
       </AppText>
+      <Card>
+        <AppText variant="heading">Insights</AppText>
+        <AppText variant="muted">Activity per day or week, what people review, and free-tier usage.</AppText>
+        <Row>
+          <Button title="Open Insights" compact onPress={() => router.push('/insights')} />
+        </Row>
+      </Card>
       <PhotoStorageCard />
       <ExportCard />
       <DemoDataCard />

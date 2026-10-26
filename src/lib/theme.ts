@@ -16,6 +16,12 @@ const light = {
   mixedBg: '#FEF3C7',
   star: '#D97706',
   danger: '#B91C1C',
+  // Charts (categorical slots validated for CVD + contrast on the card surface).
+  chart1: '#2A78D6',
+  chart2: '#EB6834',
+  chartGrid: '#EEE8DF',
+  warning: '#B45309',
+  warningBg: '#FEF3C7',
 };
 
 export type Palette = typeof light;
@@ -36,6 +42,11 @@ const dark: Palette = {
   mixedBg: '#3A2E10',
   star: '#FBBF24',
   danger: '#F87171',
+  chart1: '#3987E5',
+  chart2: '#D95926',
+  chartGrid: '#2C2722',
+  warning: '#FBBF24',
+  warningBg: '#3A2E10',
 };
 
 export function useColors(): Palette {

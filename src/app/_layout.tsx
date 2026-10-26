@@ -38,6 +38,7 @@ export default function RootLayout() {
               <Stack.Screen name="about" options={{ title: 'About' }} />
               <Stack.Screen name="admin" options={{ title: 'Admin' }} />
               <Stack.Screen name="account" options={{ title: 'Account' }} />
+              <Stack.Screen name="insights" options={{ title: 'Insights' }} />
             </Stack>
           </AppShell>
         </ThemeProvider>
