@@ -7,6 +7,7 @@ import { Turnstile } from '@/components/turnstile';
 import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { countDemoRestaurants, removeDemoData } from '@/lib/demo';
+import { addDaysISO, todayISO } from '@/lib/dates';
 import { exportAllToExcel } from '@/lib/export';
 import { friendlyError, supabase } from '@/lib/supabase';
 import type { ReportTarget } from '@/lib/types';
@@ -42,9 +43,10 @@ export default function AdminScreen() {
         Signed in as {session?.user.email}. While signed in you’ll see Edit, Hide and Delete on every restaurant, dish
         and review, including hidden ones.
       </AppText>
+      <VisitsCard />
       <Card>
         <AppText variant="heading">Insights</AppText>
-        <AppText variant="muted">Activity per day or week, what people review, and free-tier usage.</AppText>
+        <AppText variant="muted">Visitors and activity per day or week, what people review, and free-tier usage.</AppText>
         <Row>
           <Button title="Open Insights" compact onPress={() => router.push('/insights')} />
         </Row>
@@ -136,6 +138,61 @@ function AdminSignIn() {
         </Card>
       </View>
     </Screen>
+  );
+}
+
+type VisitCounts = { visits: number; unique_visitors: number };
+
+/** Visits today and over the last 7 days (admin visits aren't counted). */
+function VisitsCard() {
+  const c = useColors();
+  const [data, setData] = useState<{ today: VisitCounts; week: VisitCounts } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const today = todayISO();
+    let tz = 'UTC';
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch {}
+    supabase
+      .rpc('insights_visits', { p_start: addDaysISO(today, -6), p_end: today, p_bucket: 'day', p_tz: tz })
+      .then(({ data: d, error: err }) => {
+        if (!active) return;
+        if (err) return setError(friendlyError(err));
+        const series = (d?.series ?? []) as (VisitCounts & { bucket: string })[];
+        const last = series[series.length - 1] ?? { visits: 0, unique_visitors: 0 };
+        setData({ today: last, week: d.current as VisitCounts });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const figure = (n: number, label: string) => (
+    <View style={{ minWidth: 120 }}>
+      <AppText style={{ fontSize: 26, fontWeight: '800', color: c.text, fontVariant: ['tabular-nums'] }}>{n}</AppText>
+      <AppText variant="small">{label}</AppText>
+    </View>
+  );
+
+  return (
+    <Card>
+      <AppText variant="heading">Visits</AppText>
+      {data ? (
+        <Row wrap style={{ gap: space.xl }}>
+          {figure(data.today.visits, 'visits today')}
+          {figure(data.today.unique_visitors, 'unique visitors today')}
+          {figure(data.week.visits, 'visits, last 7 days')}
+          {figure(data.week.unique_visitors, 'unique visitors, last 7 days')}
+        </Row>
+      ) : (
+        !error && <Loading />
+      )}
+      <Notice message={error} />
+      <AppText variant="small">Admin visits aren’t counted. Charts by day, week or any range are on Insights.</AppText>
+    </Card>
   );
 }
 

@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppShell } from '@/components/app-shell';
 import { HomeButton } from '@/components/home-button';
+import { VisitTracker } from '@/components/visit-tracker';
 import { AuthProvider } from '@/lib/auth';
 import { useColors } from '@/lib/theme';
 
@@ -22,6 +23,7 @@ export default function RootLayout() {
             colors: { ...navTheme.colors, primary: c.primary, background: c.background, card: c.surface, text: c.text, border: c.border },
           }}>
           <StatusBar style="auto" />
+          <VisitTracker />
           <AppShell>
             <Stack
               screenOptions={({ route }) => ({

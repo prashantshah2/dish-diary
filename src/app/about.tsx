@@ -24,6 +24,11 @@ export default function AboutScreen() {
           Anything you post — including the name you choose to show — is public. Don’t post personal information. We
           use Cloudflare Turnstile to block spam bots and Supabase to store data.
         </AppText>
+        <AppText>
+          To count visits, the app keeps a random ID on your device and records when you open the app and whether it’s
+          the website or the iPhone app. It doesn’t record your IP address, location or what you look at, and nothing
+          is shared with advertisers or analytics companies.
+        </AppText>
       </Card>
       <Card>
         <AppText variant="heading">Community rules</AppText>

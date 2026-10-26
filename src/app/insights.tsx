@@ -42,6 +42,9 @@ type Content = {
   detail: { reviews: number; with_photo: number; with_note: number; with_rating: number };
 };
 type Capacity = { database_bytes: number; photo_bytes: number; photo_files: number; busiest_uploader_24h: number };
+type VisitCounts = { visits: number; unique_visitors: number; signed_in_users: number };
+type VisitRow = VisitCounts & { bucket: string; web: number; app: number };
+type Visits = { series: VisitRow[]; current: VisitCounts; previous: VisitCounts };
 
 const FREE_DB_BYTES = 500 * 1024 ** 2;
 const FREE_STORAGE_BYTES = 1024 ** 3;
@@ -114,6 +117,7 @@ function Dashboard() {
   }, [preset, today, firstDay, customStart, customEnd]);
 
   const [activity, setActivity] = useState<ActivityRow[] | null>(null);
+  const [visits, setVisits] = useState<Visits | null>(null);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [content, setContent] = useState<Content | null>(null);
   const [capacity, setCapacity] = useState<Capacity | null>(null);
@@ -133,14 +137,16 @@ function Dashboard() {
       supabase.rpc('insights_activity', { ...args, p_bucket: bucket }),
       supabase.rpc('insights_totals', args),
       supabase.rpc('insights_content', args),
-    ]).then(([a, t, ct]) => {
+      supabase.rpc('insights_visits', { ...args, p_bucket: bucket }),
+    ]).then(([a, t, ct, vs]) => {
       if (!active) return;
-      const err = a.error ?? t.error ?? ct.error;
+      const err = a.error ?? t.error ?? ct.error ?? vs.error;
       setError(err ? friendlyError(err) : null);
       if (!err) {
         setActivity(a.data as ActivityRow[]);
         setTotals(t.data as Totals);
         setContent(ct.data as Content);
+        setVisits(vs.data as Visits);
       }
       setRefreshing(false);
     });
@@ -203,10 +209,54 @@ function Dashboard() {
 
       <Notice message={error} />
 
-      {!activity || !totals || !content ? (
+      {!activity || !totals || !content || !visits ? (
         !error && <Loading />
       ) : (
         <View style={{ gap: space.lg, opacity: refreshing ? 0.5 : 1 }}>
+          {/* ── Visitors ─────────────────────────────── */}
+          <AppText variant="heading">Visitors</AppText>
+          <AppText variant="small">
+            A visit is each time someone opens the app (again after 30 minutes away). Unique visitors are distinct devices.
+            Admin visits aren’t counted.
+          </AppText>
+          <Grid
+            items={[
+              { key: 'visits', label: 'Visits' },
+              { key: 'unique_visitors', label: 'Unique visitors' },
+              { key: 'signed_in_users', label: 'Signed-in users' },
+            ] as { key: keyof VisitCounts; label: string }[]}
+            keyOf={(t) => t.key}
+            maxColumns={3}
+            render={(t) => (
+              <Card>
+                <StatTile label={t.label} value={visits.current[t.key]} previous={visits.previous[t.key]} />
+              </Card>
+            )}
+          />
+          <Card>
+            <AppText variant="label">Visits and unique visitors per {bucket}</AppText>
+            <ColumnChart
+              data={visits.series.map((r) => ({ label: label(r.bucket), values: [r.visits, r.unique_visitors] }))}
+              series={[
+                { name: 'visits', color: c.chart1 },
+                { name: 'unique visitors', color: c.chart2 },
+              ]}
+              emptyText="No visits in this range yet."
+            />
+          </Card>
+          <Card>
+            <AppText variant="label">Website vs iPhone app, visits per {bucket}</AppText>
+            <ColumnChart
+              stacked
+              data={visits.series.map((r) => ({ label: label(r.bucket), values: [r.web, r.app] }))}
+              series={[
+                { name: 'website', color: c.chart1 },
+                { name: 'iPhone app', color: c.chart2 },
+              ]}
+              emptyText="No visits in this range yet."
+            />
+          </Card>
+
           {/* ── 1. Activity ─────────────────────────── */}
           <AppText variant="heading">Activity</AppText>
           <Grid
@@ -262,7 +312,7 @@ function Dashboard() {
               {showTable ? 'Hide' : 'Show'} activity as a table
             </AppText>
           </Pressable>
-          {showTable && <ActivityTable rows={activity} label={label} />}
+          {showTable && <ActivityTable rows={activity} visits={visits.series} label={label} />}
 
           {/* ── 2. Content ──────────────────────────── */}
           <AppText variant="heading">What people are eating</AppText>
@@ -357,7 +407,7 @@ function DishList({ rows, kind }: { rows: Content['most_liked']; kind: 'likes' |
   );
 }
 
-function ActivityTable({ rows, label }: { rows: ActivityRow[]; label: (d: string) => string }) {
+function ActivityTable({ rows, visits, label }: { rows: ActivityRow[]; visits: VisitRow[]; label: (d: string) => string }) {
   const c = useColors();
   const cols: { key: keyof ActivityRow; title: string }[] = [
     { key: 'reviews', title: 'Reviews' },
@@ -367,12 +417,15 @@ function ActivityTable({ rows, label }: { rows: ActivityRow[]; label: (d: string
     { key: 'contributors', title: 'Contributors' },
   ];
   const cell = { flex: 1, minWidth: 70, fontSize: 13, color: c.text, fontVariant: ['tabular-nums' as const] };
+  const visitsBy = new Map(visits.map((v) => [v.bucket, v]));
   return (
     <Card>
       <ScrollView horizontal showsHorizontalScrollIndicator>
-      <View style={{ minWidth: 520, flex: 1 }}>
+      <View style={{ minWidth: 680, flex: 1 }}>
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: c.border, paddingBottom: 6 }}>
         <Text style={{ ...cell, flex: 1.4, color: c.textMuted }}>Period</Text>
+        <Text style={{ ...cell, color: c.textMuted, textAlign: 'right' }}>Visits</Text>
+        <Text style={{ ...cell, color: c.textMuted, textAlign: 'right' }}>Unique</Text>
         {cols.map((col) => (
           <Text key={col.key} style={{ ...cell, color: c.textMuted, textAlign: 'right' }}>{col.title}</Text>
         ))}
@@ -380,6 +433,8 @@ function ActivityTable({ rows, label }: { rows: ActivityRow[]; label: (d: string
       {[...rows].reverse().map((r) => (
         <View key={r.bucket} style={{ flexDirection: 'row', paddingVertical: 4 }}>
           <Text style={{ ...cell, flex: 1.4 }}>{label(r.bucket)}</Text>
+          <Text style={{ ...cell, textAlign: 'right' }}>{visitsBy.get(r.bucket)?.visits ?? 0}</Text>
+          <Text style={{ ...cell, textAlign: 'right' }}>{visitsBy.get(r.bucket)?.unique_visitors ?? 0}</Text>
           {cols.map((col) => (
             <Text key={col.key} style={{ ...cell, textAlign: 'right' }}>{r[col.key]}</Text>
           ))}
