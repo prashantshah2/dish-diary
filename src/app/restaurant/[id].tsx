@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { AdminBar, HiddenBadge, RestaurantEditForm } from '@/components/admin-tools';
 import { ContributorGate } from '@/components/contributor-gate';
@@ -10,6 +10,7 @@ import { ReportButton } from '@/components/report-button';
 import { RestaurantComment } from '@/components/restaurant-comment';
 import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { mapsUrl } from '@/lib/location';
 import { friendlyError, supabase } from '@/lib/supabase';
 import { verdict, type DishSummary, type RestaurantSummary } from '@/lib/types';
 import { MAX_CONTENT_WIDTH, radius, space, useBreakpoint, useColors } from '@/lib/theme';
@@ -84,7 +85,14 @@ export default function RestaurantScreen() {
         {[restaurant.cuisine, restaurant.price_level ? '$'.repeat(restaurant.price_level) : null].filter(Boolean).join(' · ')}
       </AppText>
       {(restaurant.address || restaurant.city) && (
-        <AppText variant="muted">{[restaurant.address, restaurant.city].filter(Boolean).join(', ')}</AppText>
+        <AppText
+          variant="muted"
+          accessibilityRole="link"
+          accessibilityHint="Opens this address in maps"
+          onPress={() => Linking.openURL(mapsUrl(restaurant.name, [restaurant.address, restaurant.city].filter(Boolean).join(', ')))}
+          style={{ textDecorationLine: 'underline' }}>
+          📍 {[restaurant.address, restaurant.city].filter(Boolean).join(', ')}
+        </AppText>
       )}
       <RestaurantComment restaurant={restaurant} onChanged={reload} />
       <Row>

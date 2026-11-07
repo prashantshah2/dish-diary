@@ -73,3 +73,17 @@ export function boxAround(c: Coords, miles: number) {
 export function formatMiles(miles: number): string {
   return miles < 0.1 ? 'nearby' : `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi`;
 }
+
+/**
+ * Link that opens a place in the device's maps app: Apple Maps on iOS, the default
+ * maps app on Android, Google Maps on the web. Searches by name + address, which finds
+ * the business itself (stored coordinates may only be the ZIP code's centre).
+ */
+export function mapsUrl(name: string, address: string): string {
+  const q = encodeURIComponent([name, address].filter(Boolean).join(', '));
+  return Platform.select({
+    ios: `https://maps.apple.com/?q=${q}`,
+    android: `geo:0,0?q=${q}`,
+    default: `https://www.google.com/maps/search/?api=1&query=${q}`,
+  });
+}
