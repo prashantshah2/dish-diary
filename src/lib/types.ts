@@ -13,6 +13,9 @@ export type RestaurantSummary = {
   is_hidden: boolean;
   lat: number | null;
   lng: number | null;
+  notes: string | null;
+  /** "YYYY-MM" (month only) or "YYYY-MM-DD". */
+  visited_on: string | null;
 };
 
 export type DishSummary = {

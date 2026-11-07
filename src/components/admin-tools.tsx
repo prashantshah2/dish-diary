@@ -10,6 +10,7 @@ import { radius, space, useColors } from '@/lib/theme';
 
 import { Select } from './select';
 import { AppText, Button, Card, Chip, Field, Notice, Row } from './ui';
+import { VisitDateField } from './visit-date-field';
 
 const TABLE: Record<ReportTarget, string> = { restaurant: 'restaurants', dish: 'dishes', review: 'reviews' };
 
@@ -116,6 +117,8 @@ export function RestaurantEditForm({
   const [price, setPrice] = useState<number | null>(restaurant.price_level);
   const [address, setAddress] = useState(restaurant.address ?? '');
   const [city, setCity] = useState(restaurant.city ?? '');
+  const [notes, setNotes] = useState(restaurant.notes ?? '');
+  const [visitedOn, setVisitedOn] = useState<string | null>(restaurant.visited_on);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +136,8 @@ export function RestaurantEditForm({
         price_level: price,
         address: address.trim() || null,
         city: city.trim() || null,
+        notes: notes.trim() || null,
+        visited_on: visitedOn,
         ...(moved ? { lat: coords?.latitude ?? null, lng: coords?.longitude ?? null } : {}),
       })
       .eq('id', restaurant.id);
@@ -156,6 +161,8 @@ export function RestaurantEditForm({
       </View>
       <Field label="Street address" value={address} onChangeText={setAddress} maxLength={300} />
       <Field label="City" value={city} onChangeText={setCity} maxLength={80} />
+      <VisitDateField label="When did you go?" value={visitedOn} onChange={setVisitedOn} />
+      <Field label="Comments" value={notes} onChangeText={setNotes} maxLength={1000} multiline />
       <Notice message={error} />
       <Row>
         <Button title="Save" onPress={save} loading={busy} />

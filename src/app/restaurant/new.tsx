@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { ContributorGate, NameField } from '@/components/contributor-gate';
 import { PlaceSearch } from '@/components/place-search';
 import { Select } from '@/components/select';
+import { VisitDateField } from '@/components/visit-date-field';
 import { AppText, Button, Card, Chip, Field, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { geocodeAddress, type PlaceResult } from '@/lib/place-lookup';
@@ -20,6 +21,8 @@ export default function NewRestaurantScreen() {
   const [price, setPrice] = useState<number | null>(null);
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [notes, setNotes] = useState('');
+  const [visitedOn, setVisitedOn] = useState<string | null>(null);
   const [osmId, setOsmId] = useState<string | null>(null);
   // Map position from the search pick; typed-in addresses are looked up when saving.
   const [picked, setPicked] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
@@ -72,6 +75,8 @@ export default function NewRestaurantScreen() {
         price_level: price,
         address: address.trim() || null,
         city: city.trim() || null,
+        notes: notes.trim() || null,
+        visited_on: visitedOn,
         ...(osmId ? { osm_id: osmId } : {}), // only sent when picked from search
         ...(coords ? { lat: coords.latitude, lng: coords.longitude } : {}),
         author_name: displayName || null,
@@ -124,6 +129,8 @@ export default function NewRestaurantScreen() {
             </View>
             <Field label="Street address" value={address} onChangeText={setAddress} placeholder="123 Main St" maxLength={300} />
             <Field label="City" value={city} onChangeText={setCity} placeholder="e.g. San Jose" maxLength={80} />
+            <VisitDateField label="When did you go?" value={visitedOn} onChange={setVisitedOn} />
+            <Field label="Comments" value={notes} onChangeText={setNotes} placeholder="Atmosphere, service, who you went with…" maxLength={1000} multiline />
             <NameField />
             <Notice message={error} />
             <Row>

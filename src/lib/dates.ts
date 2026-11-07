@@ -32,3 +32,15 @@ export function addDaysISO(s: string, days: number): string {
 export function shortISODate(s: string): string {
   return fromISODate(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/** True for a month-only date, "YYYY-MM". */
+export function isMonthOnly(s: string): boolean {
+  return /^\d{4}-\d{2}$/.test(s);
+}
+
+/** "Oct 2026" for "2026-10", otherwise the same as formatISODate. */
+export function formatVisitDate(s: string): string {
+  if (!isMonthOnly(s)) return formatISODate(s);
+  const [y, m] = s.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+}

@@ -7,6 +7,7 @@ import { ContributorGate } from '@/components/contributor-gate';
 import { DishReviews } from '@/components/dish-reviews';
 import { LikeCounts, Stars, VerdictBadge } from '@/components/rating';
 import { ReportButton } from '@/components/report-button';
+import { RestaurantComment } from '@/components/restaurant-comment';
 import { AppText, Button, Card, EmptyState, Field, Loading, Notice, Row, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { friendlyError, supabase } from '@/lib/supabase';
@@ -85,6 +86,7 @@ export default function RestaurantScreen() {
       {(restaurant.address || restaurant.city) && (
         <AppText variant="muted">{[restaurant.address, restaurant.city].filter(Boolean).join(', ')}</AppText>
       )}
+      <RestaurantComment restaurant={restaurant} onChanged={reload} />
       <Row>
         <AppText variant="small">Added by {restaurant.author_name || 'Anonymous'}</AppText>
         <ReportButton type="restaurant" id={restaurant.id} />
