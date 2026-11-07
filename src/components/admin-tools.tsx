@@ -127,7 +127,7 @@ export function RestaurantEditForm({
     setBusy(true);
     // Address changed → look up its map position again (null if it can't be found).
     const moved = address.trim() !== (restaurant.address ?? '') || city.trim() !== (restaurant.city ?? '');
-    const coords = moved ? await geocodeAddress(address, city, null) : undefined;
+    const coords = moved ? await geocodeAddress(address, city) : undefined;
     const { error: err } = await supabase
       .from('restaurants')
       .update({

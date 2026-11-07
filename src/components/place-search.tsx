@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { getCoords, type Coords } from '@/lib/location';
-import { searchPlaces, type PlaceResult } from '@/lib/place-lookup';
+import { searchPlaces, type PlaceResult, type PlaceSearchResults, type PlaceSuggestion } from '@/lib/place-lookup';
 import { radius, space, useColors } from '@/lib/theme';
 
 import { AppText, Field, Loading } from './ui';
@@ -11,7 +11,8 @@ import { AppText, Field, Loading } from './ui';
 export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }) {
   const c = useColors();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<PlaceResult[] | null>(null);
+  const [results, setResults] = useState<PlaceSearchResults | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const coords = useRef<Promise<Coords | null> | null>(null);
@@ -27,8 +28,8 @@ export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }
         const found = await searchPlaces(q, where, controller.signal);
         setResults(found);
         setError(null);
-      } catch (e) {
-        if ((e as Error).name !== 'AbortError') {
+      } catch {
+        if (!controller.signal.aborted) {
           setError('Search isn’t available right now — fill in the details below.');
           setResults(null);
         }
@@ -47,7 +48,10 @@ export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }
     if (text.trim().length < 3) setResults(null);
   };
 
-  const pick = (place: PlaceResult) => {
+  const pick = async (suggestion: PlaceSuggestion) => {
+    setResolving(true);
+    const place = await suggestion.resolve();
+    setResolving(false);
     onPick(place);
     setQuery('');
     setResults(null);
@@ -57,31 +61,31 @@ export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }
     <View style={{ gap: space.xs }}>
       <Field
         label="Find the restaurant"
-        hint="Search by name, or street number + street. Or skip this and type the details below."
+        hint="Search by restaurant name. Or skip this and type the details below."
         value={query}
         onChangeText={changeQuery}
         onFocus={() => {
           // Ask for location only once someone actually starts a search.
           coords.current ??= getCoords();
         }}
-        placeholder="e.g. Taj Palace or 1477 Berryessa"
+        placeholder="e.g. Taj Palace San Jose"
         autoCorrect={false}
         returnKeyType="search"
       />
 
-      {searching && <Loading />}
+      {(searching || resolving) && <Loading />}
       {error && <AppText variant="small" style={{ color: c.danger }}>{error}</AppText>}
 
-      {results && !searching && (
+      {results && !searching && !resolving && (
         <View style={{ borderWidth: 1, borderColor: c.border, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: c.surface }}>
-          {results.length === 0 ? (
+          {results.suggestions.length === 0 ? (
             <AppText variant="muted" style={{ padding: space.md }}>
               No matches — fill in the details below.
             </AppText>
           ) : (
-            results.map((r, i) => (
+            results.suggestions.map((r, i) => (
               <Pressable
-                key={r.osmId}
+                key={r.key}
                 accessibilityRole="button"
                 onPress={() => pick(r)}
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
@@ -92,14 +96,12 @@ export function PlaceSearch({ onPick }: { onPick: (place: PlaceResult) => void }
                   backgroundColor: pressed || hovered ? c.background : 'transparent',
                 })}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: c.text }}>{r.name}</Text>
-                <Text style={{ fontSize: 13, color: c.textMuted }}>
-                  {[r.street, r.city, r.region].filter(Boolean).join(' · ')}
-                </Text>
+                {!!r.description && <Text style={{ fontSize: 13, color: c.textMuted }}>{r.description}</Text>}
               </Pressable>
             ))
           )}
           <Text style={{ fontSize: 11, color: c.textMuted, paddingHorizontal: space.md, paddingVertical: space.xs, borderTopWidth: 1, borderTopColor: c.border }}>
-            Search by Photon · © OpenStreetMap contributors
+            {results.source === 'google' ? 'Google Maps' : 'Search by Photon · © OpenStreetMap contributors'}
           </Text>
         </View>
       )}

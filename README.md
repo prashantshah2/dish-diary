@@ -3,7 +3,7 @@
 See which dishes people liked (and which to skip) at restaurants near you.
 One Expo codebase runs as a website (Vercel) and as an iPhone app.
 
-**Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres + RLS, Auth, Storage) · Cloudflare Turnstile (CAPTCHA) · Photon / OpenStreetMap (place search) · Vercel (web hosting)
+**Stack:** Expo + Expo Router (TypeScript) · Supabase (Postgres + RLS, Auth, Storage) · Cloudflare Turnstile (CAPTCHA) · Google Places + Photon / OpenStreetMap (place search) · Vercel (web hosting)
 
 ## Screenshots
 
@@ -97,7 +97,8 @@ flowchart LR
 | **Supabase Postgres** | All data; security enforced in the database with RLS, column grants and triggers (`supabase/`) | 500 MB; pauses after ~7 idle days (hence keep-alive) |
 | **Supabase Storage** | Review photos, shrunk on the device before upload | 1 GB storage, 5 GB egress / month |
 | **Cloudflare Turnstile** | CAPTCHA before anyone can post or sign in; Supabase checks each token with the secret key | Free |
-| **Photon / OpenStreetMap** | "Find the restaurant" search and address → coordinates for Near me; called directly from the app, no key | Fair use; credit "© OpenStreetMap contributors" |
+| **Google Places API (New)** | "Find the restaurant" search, through the `place-search` Edge Function (holds the key) | Free tiers; daily caps set in Google Cloud; credit "Google Maps" |
+| **Photon / OpenStreetMap** | Fallback search when Google is unavailable, and address → coordinates for Near me; called directly from the app, no key | Fair use; credit "© OpenStreetMap contributors" |
 | **Device location** | Location for nearby search results and Near me; asked only when used | — |
 | **GitHub Actions** | `keep-alive.yml` pings the database so the free project doesn't pause | Free |
 
@@ -142,8 +143,21 @@ Breakpoints live in `src/lib/theme.ts` (`useBreakpoint`).
 
 ## Restaurant lookup
 
-"Find the restaurant" on the add form searches [Photon](https://photon.komoot.io)
-(free OpenStreetMap search by komoot — no key or account). Results are limited to ~30 km
+"Find the restaurant" on the add form searches Google Places through the `place-search` Edge
+Function (`supabase/functions/place-search/`), which keeps the key off devices and requests only
+fields in the free tiers: autocomplete with a session token, then one details call for the
+address (`addressComponents`, "Place Details Essentials"). Google's terms allow storing only the
+place id (`google_place_id`, migration `009_google_place_id.sql`), not its coordinates, so the
+position comes from OpenStreetMap (see Near me).
+
+To set it up: in Google Cloud, enable **Places API (New)**, create a key restricted to it, and set
+daily quotas (Autocomplete and GetPlace ~300/day, other methods 0) plus a $1 budget alert. Add the
+key as the Supabase Edge Function secret `GOOGLE_PLACES_API_KEY`, run migration 009, and deploy
+the function with JWT verification off (it checks the user itself):
+`npx supabase functions deploy place-search --no-verify-jwt`.
+
+When Google fails (no key, daily cap reached), the app uses [Photon](https://photon.komoot.io)
+for 10 minutes before retrying Google (free OpenStreetMap search by komoot — no key or account). Results are limited to ~30 km
 around the visitor when they share location, falling back to everywhere if nothing matches.
 Picking a result fills name, street and city and stores the OpenStreetMap id (`osm_id`) so the
 same place can't be added twice. The public instance is fair-use and throttles heavy traffic;
@@ -196,8 +210,9 @@ Code: `src/lib/photos.ts`, `src/components/review-form.tsx`, `src/components/pho
 
 "📍 Near me" on the main page lists reviewed restaurants within 2/5/10/25 miles of the visitor,
 nearest first (straight-line distance). Restaurants store `lat`/`lng` (migration
-`004_location.sql`): from the map-search pick, or by looking up the typed address when saving;
-admin address edits re-locate. Restaurants without coordinates don't appear in Near me — fix one
+`004_location.sql`): from a Photon pick, or by looking up the address in OpenStreetMap when
+saving — the exact house number on the same street, else the middle of the ZIP code (Google picks
+only; about 1–3 miles off), else none rather than a wrong spot. Admin address edits re-locate. Restaurants without coordinates don't appear in Near me — fix one
 by editing its address as admin. Code: `src/lib/location.ts`, `src/app/index.tsx`.
 
 ## User accounts (optional for visitors)

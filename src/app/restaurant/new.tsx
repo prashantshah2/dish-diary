@@ -23,9 +23,8 @@ export default function NewRestaurantScreen() {
   const [city, setCity] = useState('');
   const [notes, setNotes] = useState('');
   const [visitedOn, setVisitedOn] = useState<string | null>(null);
-  const [osmId, setOsmId] = useState<string | null>(null);
-  // Map position from the search pick; typed-in addresses are looked up when saving.
-  const [picked, setPicked] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
+  // The search pick: its map place id (to spot duplicates), plus position / ZIP for saving.
+  const [picked, setPicked] = useState<PlaceResult | null>(null);
   const [existing, setExisting] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,22 +35,20 @@ export default function NewRestaurantScreen() {
     const { data: found } = await supabase
       .from('restaurants')
       .select('id, name')
-      .eq('osm_id', place.osmId)
+      .eq(place.googlePlaceId ? 'google_place_id' : 'osm_id', place.googlePlaceId ?? place.osmId)
       .maybeSingle();
     if (found) {
       setExisting(found);
       return;
     }
     setExisting(null);
-    setOsmId(place.osmId);
-    setPicked({ latitude: place.latitude, longitude: place.longitude, address: place.street });
+    setPicked(place);
     setName(place.name);
     setAddress(place.street);
     setCity(place.city);
   };
 
   const clearPick = () => {
-    setOsmId(null);
     setPicked(null);
     setName('');
     setAddress('');
@@ -62,11 +59,16 @@ export default function NewRestaurantScreen() {
     if (!name.trim()) return setError('Please enter the restaurant name.');
     setBusy(true);
     setError(null);
-    // Keep the picked position unless they changed the street afterwards.
+    // Keep the picked position / ZIP unless they changed the address afterwards.
+    // Google picks have no position (it may not be stored), so theirs is looked up here.
+    const unchanged = picked && picked.street === address && picked.city === city;
     const coords =
-      picked && picked.address === address
-        ? picked
-        : await geocodeAddress(address, city, picked);
+      unchanged && picked.latitude != null && picked.longitude != null
+        ? { latitude: picked.latitude, longitude: picked.longitude }
+        : await geocodeAddress(address, city, {
+            near: picked?.latitude != null && picked.longitude != null ? { latitude: picked.latitude, longitude: picked.longitude } : null,
+            ...(unchanged ? { postcode: picked.postcode, countryCode: picked.countryCode } : {}),
+          });
     const { data, error: err } = await supabase
       .from('restaurants')
       .insert({
@@ -77,7 +79,9 @@ export default function NewRestaurantScreen() {
         city: city.trim() || null,
         notes: notes.trim() || null,
         visited_on: visitedOn,
-        ...(osmId ? { osm_id: osmId } : {}), // only sent when picked from search
+        // only sent when picked from search
+        ...(picked?.osmId ? { osm_id: picked.osmId } : {}),
+        ...(picked?.googlePlaceId ? { google_place_id: picked.googlePlaceId } : {}),
         ...(coords ? { lat: coords.latitude, lng: coords.longitude } : {}),
         author_name: displayName || null,
       })
@@ -109,7 +113,7 @@ export default function NewRestaurantScreen() {
                 </Row>
               </Card>
             )}
-            {osmId && (
+            {picked && (
               <Row wrap>
                 <AppText variant="small">Filled from map search — check and edit below.</AppText>
                 <AppText variant="small" accessibilityRole="button" onPress={clearPick} style={{ color: c.primary, textDecorationLine: 'underline' }}>
